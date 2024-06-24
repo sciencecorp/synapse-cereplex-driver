@@ -4,8 +4,8 @@ import asyncio
 import logging
 import argparse
 from coolname import generate_slug
-from synapse.rpc import serve
-from synapse.autodiscovery import MulticastDiscoveryProtocol
+from synapse.server.rpc import serve
+from synapse.server.autodiscovery import MulticastDiscoveryProtocol
 
 RPC_PORT = 647
 

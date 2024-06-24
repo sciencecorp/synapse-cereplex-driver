@@ -2,11 +2,7 @@ import grpc
 import threading
 
 from threading import Thread
-from synapse.streaming_data import (
-    send_fake_data_async,
-    recv_data_async,
-    create_node_socket,
-)
+from synapse.server.streaming_data import StreamIn, StreamOut
 from generated.api.synapse_pb2 import Status, StatusCode, DeviceInfo, DeviceState
 from generated.api.node_pb2 import NodeType
 from generated.api.synapse_pb2_grpc import (
@@ -25,13 +21,18 @@ async def serve(server_name, device_serial, rpc_port) -> None:
     await server.wait_for_termination()
 
 
+NODE_TYPE_OBJECT_MAP = {
+    NodeType.kStreamIn: StreamIn,
+    NodeType.kStreamOut: StreamOut,
+}
+
+
 class SynapseServicer(SynapseDeviceServicer):
     """Provides methods that implement functionality of route guide server."""
 
-    sockets = []
-    threads = []
     state = DeviceState.kInitializing
     configuration = None
+    nodes = []
     stop_event = None
 
     def __init__(self, name, serial):
@@ -101,31 +102,24 @@ class SynapseServicer(SynapseDeviceServicer):
         )
 
     def _reconfigure(self, configuration):
-        self._sockets_tear_down()
+        self.state = DeviceState.kInitializing
+
+        for node in self.nodes:
+            node.stop()
+
         for node in configuration.nodes:
-            if node.type in [NodeType.kStreamIn, NodeType.kStreamOut]:
-                self.sockets.append(create_node_socket(node))
+            if node.type not in list(NODE_TYPE_OBJECT_MAP.keys()):
+                return False
+            node = NODE_TYPE_OBJECT_MAP[node.type](node.id, self)
+            self.nodes.append(node)
         self.configuration = configuration
         return True
 
     def _start_streaming(self):
         print("Starting streaming...")
         self.stop_event = threading.Event()
-        for socket in self.sockets:
-            if socket[2].type == NodeType.kStreamIn:
-                t = Thread(
-                    target=recv_data_async, args=(self.stop_event, socket[1], print)
-                )
-            else:
-                t = Thread(
-                    target=send_fake_data_async,
-                    args=(
-                        self.stop_event,
-                        socket[1],
-                    ),
-                )
-            t.start()
-            self.threads.append(t)
+        for node in self.nodes:
+            node.start()
         self.state = DeviceState.kRunning
         return True
 
@@ -134,18 +128,10 @@ class SynapseServicer(SynapseDeviceServicer):
             return False
         print("Stopping streaming...")
         self.stop_event.set()
-        for t in self.threads:
-            t.join()
-        self.threads = []
+        for node in self.nodes:
+            node.stop()
         self.state = DeviceState.kStopped
         return True
 
-    def _sockets_tear_down(self):
-        self.state = DeviceState.kInitializing
-        for socket in self.sockets:
-            socket[1].close()
-            socket[0].term()
-        self.sockets = []
-
     def _sockets_status_info(self):
-        return [x[2] for x in self.sockets]
+        return [node.node_socket() for node in self.nodes]
