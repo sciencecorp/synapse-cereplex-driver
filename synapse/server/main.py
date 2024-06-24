@@ -1,3 +1,4 @@
+import signal
 import struct
 import socket
 import asyncio
@@ -17,6 +18,7 @@ SECURITY_PASSPHRASE = None
 
 SERVER_NAME = generate_slug(3)
 DEVICE_SERIAL = 12345678
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -82,7 +84,13 @@ if __name__ == "__main__":
     async def serve_factory():
         return await serve(args.name, args.serial, args.rpc_port)
 
-    loop.run_until_complete(serve_factory())
+    main_task = loop.create_task(serve_factory())
+    loop.run_until_complete(main_task)
 
-    loop.run_forever()
-    loop.close()
+    signal.signal(signal.SIGINT, main_task.cancel)
+    signal.signal(signal.SIGINT, listen.cancel)
+
+    try:
+        loop.run_forever()
+    finally:
+        loop.close()
