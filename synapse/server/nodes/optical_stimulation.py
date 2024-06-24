@@ -37,5 +37,7 @@ class OpticalStimulation(BaseNode):
                 data = self.data_queue.get(True, 1)
             except queue.Empty:
                 continue
-            # write to output device as appropriate
+            # write to the device somehow, but here, just log it
+            logging.info("OpticalStimulation (node %d): received data" % self.id)
+
         logging.info("OpticalStimulation (node %d): exited thread" % self.id)
