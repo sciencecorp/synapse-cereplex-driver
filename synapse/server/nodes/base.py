@@ -1,5 +1,4 @@
 import zmq
-from typing import Any
 from synapse.generated.api.node_pb2 import NodeSocket, DataType
 
 
@@ -17,6 +16,9 @@ class BaseNode(object):
         pass
 
     def on_data_received(self):
+        pass
+
+    def emit_data(self, data):
         pass
 
     def node_socket(self):

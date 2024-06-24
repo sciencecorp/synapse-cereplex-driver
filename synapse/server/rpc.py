@@ -1,6 +1,5 @@
 import grpc
 import logging
-import threading
 
 from threading import Thread
 from synapse.server.nodes import (
@@ -133,6 +132,20 @@ class SynapseServicer(SynapseDeviceServicer):
             )
             node = NODE_TYPE_OBJECT_MAP[node.type](node.id)
             self.nodes.append(node)
+        for connection in configuration.connections:
+            source_node = next(
+                (node for node in self.nodes if node.id == connection.src_node_id), None
+            )
+            target_node = next(
+                (node for node in self.nodes if node.id == connection.dst_node_id), None
+            )
+            if not source_node or not target_node:
+                logging.error(
+                    "Server: failed to connect nodes %d -> %d"
+                    % (connection.src_node_id, connection.dst_node_id)
+                )
+                return False
+            source_node.emit_data = target_node.on_data_received
         logging.info(
             "%d nodes received, %d currently loaded"
             % (len(configuration.nodes), len(self.nodes))

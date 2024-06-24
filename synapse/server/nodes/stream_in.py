@@ -1,7 +1,6 @@
-import threading
 import zmq
 import logging
-from threading import Thread
+import threading
 from synapse.server.nodes import BaseNode
 from synapse.generated.api.node_pb2 import NodeType
 
@@ -22,7 +21,7 @@ class StreamIn(BaseNode):
         self.socket.setsockopt(zmq.SUBSCRIBE, b"")
         self.socket.setsockopt(zmq.LINGER, 0)
 
-        self.thread = Thread(target=self.run, args=())
+        self.thread = threading.Thread(target=self.run, args=())
         self.thread.start()
         logging.info("StreamIn (node %d): started" % self.id)
 
