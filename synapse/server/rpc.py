@@ -1,11 +1,22 @@
 import grpc
+import logging
 import threading
 
 from threading import Thread
-from synapse.server.streaming_data import StreamIn, StreamOut
-from generated.api.synapse_pb2 import Status, StatusCode, DeviceInfo, DeviceState
-from generated.api.node_pb2 import NodeType
-from generated.api.synapse_pb2_grpc import (
+from synapse.server.nodes import (
+    StreamIn,
+    StreamOut,
+    OpticalStimulation,
+    ElectricalBroadband,
+)
+from synapse.generated.api.synapse_pb2 import (
+    Status,
+    StatusCode,
+    DeviceInfo,
+    DeviceState,
+)
+from synapse.generated.api.node_pb2 import NodeType
+from synapse.generated.api.synapse_pb2_grpc import (
     SynapseDeviceServicer,
     add_SynapseDeviceServicer_to_server,
 )
@@ -24,6 +35,8 @@ async def serve(server_name, device_serial, rpc_port) -> None:
 NODE_TYPE_OBJECT_MAP = {
     NodeType.kStreamIn: StreamIn,
     NodeType.kStreamOut: StreamOut,
+    NodeType.kOpticalStim: OpticalStimulation,
+    NodeType.kElectricalBroadband: ElectricalBroadband,
 }
 
 
@@ -33,7 +46,6 @@ class SynapseServicer(SynapseDeviceServicer):
     state = DeviceState.kInitializing
     configuration = None
     nodes = []
-    stop_event = None
 
     def __init__(self, name, serial):
         self.name = name
@@ -104,34 +116,47 @@ class SynapseServicer(SynapseDeviceServicer):
     def _reconfigure(self, configuration):
         self.state = DeviceState.kInitializing
 
+        logging.info("Reconfiguring device...")
         for node in self.nodes:
             node.stop()
 
+        self.nodes = []
+
+        logging.info("Creating nodes...")
         for node in configuration.nodes:
             if node.type not in list(NODE_TYPE_OBJECT_MAP.keys()):
+                logging.error("Unknown node type: %s" % NodeType.Name(node.type))
+                logging.error("Failed to configure.")
                 return False
-            node = NODE_TYPE_OBJECT_MAP[node.type](node.id, self)
+            logging.info(
+                "Creating %s node(%d)..." % (NodeType.Name(node.type), node.id)
+            )
+            node = NODE_TYPE_OBJECT_MAP[node.type](node.id)
             self.nodes.append(node)
+        logging.info(
+            "%d nodes received, %d currently loaded"
+            % (len(configuration.nodes), len(self.nodes))
+        )
         self.configuration = configuration
         return True
 
     def _start_streaming(self):
-        print("Starting streaming...")
-        self.stop_event = threading.Event()
+        logging.info("Server: starting streaming...")
         for node in self.nodes:
             node.start()
         self.state = DeviceState.kRunning
+        logging.info("Server: streaming started.")
         return True
 
     def _stop_streaming(self):
-        if self.stop_event is None:
+        if self.state != DeviceState.kRunning:
             return False
-        print("Stopping streaming...")
-        self.stop_event.set()
+        logging.info("Server: stopping streaming...")
         for node in self.nodes:
             node.stop()
         self.state = DeviceState.kStopped
+        logging.info("Server: streaming stopped.")
         return True
 
     def _sockets_status_info(self):
-        return [node.node_socket() for node in self.nodes]
+        return [node.node_socket() for node in self.nodes if node.socket]
