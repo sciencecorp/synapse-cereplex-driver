@@ -1,0 +1,20 @@
+[project]
+name = "synapse-server"
+version = "0.1.0"
+description = "Simple Synapse device implementation in Python."
+authors = [
+    {name = "Science Team", email = "team@science.xyz"},
+]
+dependencies = [
+    "grpcio-tools",
+    "protoletariat"
+]
+readme = "README.md"
+license = {text = "TBD"}
+
+[tool.pdm.dev-dependencies]
+dev = [
+]
+
+[tool.pdm]
+distribution = false
