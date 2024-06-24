@@ -40,7 +40,10 @@ class StreamOut(BaseNode):
     def run(self):
         logging.info("StreamOut (node %d): Starting to send data..." % self.id)
         while not self.stop_event.is_set():
-            data = self.data_queue.get()
+            try:
+                data = self.data_queue.get(True, 1)
+            except queue.Empty:
+                continue
             try:
                 self.socket.send(data)
             except zmq.ZMQError as e:

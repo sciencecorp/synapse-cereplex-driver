@@ -35,15 +35,12 @@ class StreamIn(BaseNode):
         self.socket = None
         logging.info("StreamIn (node %d): stopped" % self.id)
 
-    def on_data_received(self):
-        pass
-
     def run(self):
         logging.info("StreamOut (node %d): Starting to receive data..." % self.id)
         while not self.stop_event.is_set():
             try:
                 data = self.socket.recv()
-                self.on_data_received(data)
+                self.emit_data(data)
             except zmq.ZMQError as e:
                 if e.errno == zmq.EAGAIN:
                     continue
