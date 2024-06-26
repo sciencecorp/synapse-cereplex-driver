@@ -1,7 +1,10 @@
 class MulticastDiscoveryProtocol:
 
-    def __init__(self, server_name, security_mode=False, passphrase=None, rpc_port=647):
+    def __init__(
+        self, server_name, serial, security_mode=False, passphrase=None, rpc_port=647
+    ):
         self.server_name = server_name
+        self.serial = serial
         self.security_mode = security_mode
         self.passphrase = passphrase
         self.rpc_port = rpc_port
@@ -23,9 +26,9 @@ class MulticastDiscoveryProtocol:
             if self.check_security(code):
                 print("  -- Security pass, replying")
                 self.transport.sendto(
-                    "ID SYN1.0 {} {}".format(self.rpc_port, self.server_name).encode(
-                        "ascii"
-                    ),
+                    "ID {} SYN1.0 {} {}".format(
+                        self.serial, self.rpc_port, self.server_name
+                    ).encode("ascii"),
                     addr,
                 )
             else:

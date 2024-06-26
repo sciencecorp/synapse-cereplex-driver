@@ -17,7 +17,7 @@ SECURITY_MODE = False
 SECURITY_PASSPHRASE = None
 
 SERVER_NAME = generate_slug(3)
-DEVICE_SERIAL = 12345678
+DEVICE_SERIAL = "SFI000001"
 
 
 if __name__ == "__main__":
@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     listen = loop.create_datagram_endpoint(
         lambda: MulticastDiscoveryProtocol(
-            args.name, SECURITY_MODE, args.passphrase, args.rpc_port
+            args.name, args.serial, SECURITY_MODE, args.passphrase, args.rpc_port
         ),
         sock=sock,
     )
