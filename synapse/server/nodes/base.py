@@ -1,5 +1,5 @@
 import zmq
-from synapse.generated.api.node_pb2 import NodeSocket, DataType
+from synapse.generated.api.node_pb2 import NodeConfig, NodeSocket, DataType
 
 
 class BaseNode(object):
@@ -8,6 +8,12 @@ class BaseNode(object):
         self.type = type
         self.socket = None
         self.zmq_context = None
+
+    def config(self):
+        return NodeConfig(
+            id=self.id,
+            type=self.type,
+        )
 
     def start(self):
         pass

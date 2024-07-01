@@ -11,6 +11,7 @@ from synapse.server.nodes import (
 from synapse.generated.api.synapse_pb2 import (
     Status,
     StatusCode,
+    DeviceConfiguration,
     DeviceInfo,
     DeviceState,
 )
@@ -40,17 +41,23 @@ NODE_TYPE_OBJECT_MAP = {
 
 
 class SynapseServicer(SynapseDeviceServicer):
-    """Provides methods that implement functionality of route guide server."""
+    """Provides methods that implement functionality of a Synapse device server."""
 
     state = DeviceState.kInitializing
     configuration = None
-    nodes = []
+    nodes = [
+        StreamIn(1),
+        StreamOut(2),
+        OpticalStimulation(3),
+        ElectricalBroadband(4),
+    ]
 
     def __init__(self, name, serial):
         self.name = name
         self.serial = serial
 
     def Info(self, request, context):
+        print(f"Info request received for {self.name} {self.serial}")
         return DeviceInfo(
             name=self.name,
             serial=self.serial,
@@ -63,7 +70,10 @@ class SynapseServicer(SynapseDeviceServicer):
                 state=self.state,
             ),
             peripherals=[],
-            configuration=self.configuration,
+            configuration=DeviceConfiguration(
+                nodes=[node.config() for node in self.nodes],
+                connections=[]
+            ),
         )
 
     def Configure(self, request, context):

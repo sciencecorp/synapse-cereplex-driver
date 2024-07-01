@@ -22,23 +22,19 @@ class StreamOut(BaseNode):
 
         self.thread = threading.Thread(target=self.run, args=())
         self.thread.start()
-        logging.info("StreamOut (node %d): started" % self.id)
 
     def stop(self):
         if not hasattr(self, "thread") or not self.thread.is_alive():
             return
-        logging.info("StreamOut (node %d): stopping..." % self.id)
         self.stop_event.set()
         self.thread.join()
         self.socket.close()
         self.socket = None
-        logging.info("StreamOut (node %d): stopped" % self.id)
 
     def on_data_received(self, data):
         self.data_queue.put(data)
 
     def run(self):
-        logging.info("StreamOut (node %d): Starting to send data..." % self.id)
         while not self.stop_event.is_set():
             try:
                 data = self.data_queue.get(True, 1)
@@ -48,4 +44,3 @@ class StreamOut(BaseNode):
                 self.socket.send(data)
             except zmq.ZMQError as e:
                 logging.error(f"Error sending data: {e}")
-        logging.info("StreamOut (node %d): exited thread" % self.id)
