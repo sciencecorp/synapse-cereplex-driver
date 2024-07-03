@@ -57,7 +57,7 @@ class SynapseServicer(SynapseDeviceServicer):
         self.serial = serial
 
     def Info(self, request, context):
-        print(f"Info request received for {self.name} {self.serial}")
+        logging.info("Info()")
         return DeviceInfo(
             name=self.name,
             serial=self.serial,
@@ -77,6 +77,7 @@ class SynapseServicer(SynapseDeviceServicer):
         )
 
     def Configure(self, request, context):
+        logging.info("Configure()")
         if not self._reconfigure(request):
             return Status(
                 message="Failed to configure",
@@ -93,6 +94,7 @@ class SynapseServicer(SynapseDeviceServicer):
         )
 
     def Start(self, request, context):
+        logging.info("Start()")
         if not self._start_streaming():
             return Status(
                 message="Failed to start streaming",
@@ -108,6 +110,7 @@ class SynapseServicer(SynapseDeviceServicer):
         )
 
     def Stop(self, request, context):
+        logging.info("Stop()")
         if not self._stop_streaming():
             return Status(
                 message="Failed to stop streaming",

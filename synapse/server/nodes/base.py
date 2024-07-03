@@ -6,7 +6,7 @@ class BaseNode(object):
         self.type = type
         self.bind = None
 
-    def config(self):
+    def config(self) -> NodeConfig:
         return NodeConfig(
             id=self.id,
             type=self.type,

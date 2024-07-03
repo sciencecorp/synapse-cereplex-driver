@@ -36,7 +36,7 @@ class StreamIn(BaseNode):
         logging.info("StreamIn (node %d): started" % self.id)
 
     def stop(self):
-        if not hasattr(self, "thread") or not self.thread.is_alive():
+        if not hasattr(self, "__thread") or not self.__thread.is_alive():
             return
         logging.info("StreamIn (node %d): stopping..." % self.id)
         self.__stop_event.set()
@@ -46,7 +46,7 @@ class StreamIn(BaseNode):
         logging.info("StreamIn (node %d): stopped" % self.id)
 
     def run(self):
-        logging.info("StreamIn (node %d): Starting to receive data..." % self.id)
+        logging.info("StreamIn (node %d): starting to receive data..." % self.id)
         while not self.__stop_event.is_set():
             try:
                 data, _ = self.__socket.recvfrom(1024)
