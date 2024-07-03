@@ -1,10 +1,11 @@
-from synapse.generated.api.node_pb2 import NodeConfig, NodeSocket, DataType
+from typing import Tuple
+from synapse.generated.api.node_pb2 import NodeConfig, NodeType, NodeSocket, DataType
 
 class BaseNode(object):
     def __init__(self, id, type) -> None:
-        self.id = id
-        self.type = type
-        self.bind = None
+        self.id: int = id
+        self.type: NodeType = type
+        self.socket: Tuple[str, int] = None
 
     def config(self) -> NodeConfig:
         return NodeConfig(
@@ -25,11 +26,11 @@ class BaseNode(object):
         pass
 
     def node_socket(self):
-        if self.bind is None:
+        if self.socket is None:
             return False
         return NodeSocket(
             node_id=self.id,
             data_type=DataType.kAny,
-            bind=self.bind,
+            bind=f"{self.socket[0]}:{self.socket[1]}",
             type=self.type,
         )

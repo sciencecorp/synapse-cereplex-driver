@@ -7,7 +7,6 @@ from synapse.generated.api.nodes.optical_stim_pb2 import OpticalStimConfig
 
 
 class OpticalStimulation(BaseNode):
-
     def __init__(self, id, config = OpticalStimConfig()):
         super().__init__(id, NodeType.kOpticalStim)
         self.stop_event = threading.Event()
@@ -39,6 +38,7 @@ class OpticalStimulation(BaseNode):
             except queue.Empty:
                 continue
             # write to the device somehow, but here, just log it
-            logging.info("OpticalStimulation (node %d): received data" % self.id)
+            value = int.from_bytes(data, byteorder="big")
+            logging.info("OpticalStimulation (node %d): received data: %i" % (self.id, value))
 
         logging.info("OpticalStimulation (node %d): exited thread" % self.id)

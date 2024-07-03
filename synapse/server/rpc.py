@@ -145,7 +145,7 @@ class SynapseServicer(SynapseDeviceServicer):
             config = getattr(node, config_key) if config_key else None
 
             logging.info(
-                "Creating %s node(%d) with config: %s" % (NodeType.Name(node.type), node.id, config)
+                "Creating %s node(%d)" % (NodeType.Name(node.type), node.id)
             )
             node = NODE_TYPE_OBJECT_MAP[node.type](node.id, config)
             self.nodes.append(node)
@@ -190,4 +190,4 @@ class SynapseServicer(SynapseDeviceServicer):
         return True
 
     def _sockets_status_info(self):
-        return [node.node_socket() for node in self.nodes if node.bind]
+        return [node.node_socket() for node in self.nodes if node.socket]
