@@ -7,9 +7,10 @@ from synapse.generated.api.node_pb2 import NodeType
 
 MULTICAST_ADDR = "239.0.0.115"
 MULTICAST_PORT = 6473
+from synapse.generated.api.nodes.stream_in_pb2 import StreamInConfig
 
 class StreamIn(BaseNode):
-    def __init__(self, id):
+    def __init__(self, id, config = StreamInConfig()):
         super().__init__(id, NodeType.kStreamIn)
         self.__socket = None
         self.__stop_event = threading.Event()

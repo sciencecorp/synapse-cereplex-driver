@@ -3,11 +3,12 @@ import logging
 import threading
 from synapse.server.nodes import BaseNode
 from synapse.generated.api.node_pb2 import NodeType
+from synapse.generated.api.nodes.optical_stim_pb2 import OpticalStimConfig
 
 
 class OpticalStimulation(BaseNode):
 
-    def __init__(self, id):
+    def __init__(self, id, config = OpticalStimConfig()):
         super().__init__(id, NodeType.kOpticalStim)
         self.stop_event = threading.Event()
         self.data_queue = queue.Queue()

@@ -4,13 +4,14 @@ import socket
 import threading
 from synapse.server.nodes import BaseNode
 from synapse.generated.api.node_pb2 import NodeType
+from synapse.generated.api.nodes.stream_out_pb2 import StreamOutConfig
 
 MULTICAST_ADDR = "239.0.0.115"
 MULTICAST_PORT = 6472
 MULTICAST_TTL = 3
 
 class StreamOut(BaseNode):
-    def __init__(self, id):
+    def __init__(self, id, config = StreamOutConfig()):
         super().__init__(id, NodeType.kStreamOut)
         # TODO(antoniae): accept configuration
         self.__group = MULTICAST_ADDR
