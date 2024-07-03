@@ -1,13 +1,10 @@
-import zmq
 from synapse.generated.api.node_pb2 import NodeConfig, NodeSocket, DataType
-
 
 class BaseNode(object):
     def __init__(self, id, type) -> None:
         self.id = id
         self.type = type
-        self.socket = None
-        self.zmq_context = None
+        self.bind = None
 
     def config(self):
         return NodeConfig(
@@ -28,11 +25,11 @@ class BaseNode(object):
         pass
 
     def node_socket(self):
-        if self.socket is None:
+        if self.bind is None:
             return False
         return NodeSocket(
             node_id=self.id,
             data_type=DataType.kAny,
-            bind=self.socket.getsockopt(zmq.LAST_ENDPOINT).decode("ascii"),
+            bind=self.bind,
             type=self.type,
         )

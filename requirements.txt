@@ -10,5 +10,4 @@ grpcio-tools==1.62.2
 protobuf==4.25.3
 protoletariat==3.2.19
 pycparser==2.22; implementation_name == "pypy"
-pyzmq==26.0.3
 setuptools==70.1.0

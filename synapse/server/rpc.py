@@ -182,4 +182,4 @@ class SynapseServicer(SynapseDeviceServicer):
         return True
 
     def _sockets_status_info(self):
-        return [node.node_socket() for node in self.nodes if node.socket]
+        return [node.node_socket() for node in self.nodes if node.bind]
