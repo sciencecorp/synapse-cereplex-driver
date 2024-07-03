@@ -15,15 +15,15 @@ class OpticalStimulation(BaseNode):
     def start(self):
         self.thread = threading.Thread(target=self.run, args=())
         self.thread.start()
-        logging.info("OpticalStimulatuon (node %d): started" % self.id)
+        logging.info("OpticalStimulation (node %d): started" % self.id)
 
     def stop(self):
         if not hasattr(self, "thread") or not self.thread.is_alive():
             return
-        logging.info("OpticalStimulatuon (node %d): stopping..." % self.id)
+        logging.info("OpticalStimulation (node %d): stopping..." % self.id)
         self.stop_event.set()
         self.thread.join()
-        logging.info("OpticalStimulatuon (node %d): stopped" % self.id)
+        logging.info("OpticalStimulation (node %d): stopped" % self.id)
 
     def on_data_received(self, data):
         self.data_queue.put(data)
