@@ -140,11 +140,16 @@ class SynapseServicer(SynapseDeviceServicer):
                 logging.error("Unknown node type: %s" % NodeType.Name(node.type))
                 logging.error("Failed to configure.")
                 return False
+
+            config_key = node.WhichOneof("config")
+            config = getattr(node, config_key) if config_key else None
+
             logging.info(
-                "Creating %s node(%d)..." % (NodeType.Name(node.type), node.id)
+                "Creating %s node(%d) with config: %s" % (NodeType.Name(node.type), node.id, config)
             )
-            node = NODE_TYPE_OBJECT_MAP[node.type](node.id)
+            node = NODE_TYPE_OBJECT_MAP[node.type](node.id, config)
             self.nodes.append(node)
+
         for connection in configuration.connections:
             source_node = next(
                 (node for node in self.nodes if node.id == connection.src_node_id), None
