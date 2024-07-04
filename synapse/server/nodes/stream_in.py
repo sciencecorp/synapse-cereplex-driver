@@ -1,4 +1,5 @@
 import logging
+import select
 import socket
 import struct
 import threading
@@ -56,16 +57,16 @@ class StreamIn(BaseNode):
 
     def start(self):
         logging.info("StreamIn (node %d): starting..." % self.id)
-        self.__thread = threading.Thread(target=self.run, args=())
-        self.__thread.start()
+        self.thread = threading.Thread(target=self.run, args=())
+        self.thread.start()
         logging.info("StreamIn (node %d): started" % self.id)
 
     def stop(self):
-        if not hasattr(self, "__thread") or not self.__thread.is_alive():
+        if not hasattr(self, "thread") or not self.thread.is_alive():
             return
         logging.info("StreamIn (node %d): stopping..." % self.id)
         self.__stop_event.set()
-        self.__thread.join()
+        self.thread.join()
         self.__socket.close()
         self.__socket = None
         logging.info("StreamIn (node %d): stopped" % self.id)
@@ -74,9 +75,13 @@ class StreamIn(BaseNode):
         logging.info("StreamIn (node %d): starting to receive data..." % self.id)
         while not self.__stop_event.is_set():
             try:
-                data, _ = self.__socket.recvfrom(1024)
-                self.emit_data(data)
-                pass
+                ready = select.select([self.__socket], [], [], 1)
+                if ready[0]:
+                    data, _ = self.__socket.recvfrom(1024)
+                    
+                    value = int.from_bytes(data, byteorder='big')
+                    self.emit_data(data)
+                    pass
             except Exception as e:
                 logging.error(f"Error receiving data: {e}")
     

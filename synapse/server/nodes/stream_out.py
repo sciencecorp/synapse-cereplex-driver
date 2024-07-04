@@ -27,7 +27,6 @@ class StreamOut(BaseNode):
         return c
     
     def reconfigure(self, config: StreamOutConfig):
-
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
         multicast_group = config.multicast_group
@@ -48,18 +47,18 @@ class StreamOut(BaseNode):
     def start(self):
         logging.info("StreamOut (node %d): starting..." % self.id)
 
-        self.__thread = threading.Thread(target=self.run, args=())
-        self.__thread.start()
+        self.thread = threading.Thread(target=self.run, args=())
+        self.thread.start()
 
         logging.info("StreamOut (node %d): started" % self.id)
 
     def stop(self):
         logging.info("StreamOut (node %d): stopping..." % self.id)
-        if not hasattr(self, "__thread") or not self.__thread.is_alive():
+        if not hasattr(self, "thread") or not self.thread.is_alive():
             return
 
         self.__stop_event.set()
-        self.__thread.join()
+        self.thread.join()
         self.__socket.close()
         self.__socket = None
         logging.info("StreamOut (node %d): stopped" % self.id)
