@@ -79,7 +79,6 @@ class StreamIn(BaseNode):
                 if ready[0]:
                     data, _ = self.__socket.recvfrom(1024)
                     
-                    value = int.from_bytes(data, byteorder='big')
                     self.emit_data(data)
                     pass
             except Exception as e:
