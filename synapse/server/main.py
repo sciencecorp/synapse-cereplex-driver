@@ -5,8 +5,12 @@ import asyncio
 import logging
 import argparse
 from coolname import generate_slug
+
+logging.basicConfig(level=logging.INFO)
+
 from synapse.server.rpc import serve
 from synapse.server.autodiscovery import MulticastDiscoveryProtocol
+
 
 RPC_PORT = 647
 
@@ -56,8 +60,6 @@ if __name__ == "__main__":
 
     if args.hidden:
         SECURITY_MODE = True
-
-    logging.basicConfig(level=logging.INFO)
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)

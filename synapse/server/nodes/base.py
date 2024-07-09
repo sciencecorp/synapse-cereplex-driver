@@ -1,15 +1,14 @@
-import zmq
-from synapse.generated.api.node_pb2 import NodeConfig, NodeSocket, DataType
-
+from typing import Tuple
+from synapse.generated.api.datatype_pb2 import DataType
+from synapse.generated.api.node_pb2 import NodeConfig, NodeType, NodeSocket
 
 class BaseNode(object):
     def __init__(self, id, type) -> None:
-        self.id = id
-        self.type = type
-        self.socket = None
-        self.zmq_context = None
+        self.id: int = id
+        self.type: NodeType = type
+        self.socket: Tuple[str, int] = None
 
-    def config(self):
+    def config(self) -> NodeConfig:
         return NodeConfig(
             id=self.id,
             type=self.type,
@@ -30,9 +29,10 @@ class BaseNode(object):
     def node_socket(self):
         if self.socket is None:
             return False
+
         return NodeSocket(
             node_id=self.id,
             data_type=DataType.kAny,
-            bind=self.socket.getsockopt(zmq.LAST_ENDPOINT).decode("ascii"),
+            bind=self.socket,
             type=self.type,
         )

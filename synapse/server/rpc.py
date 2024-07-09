@@ -1,7 +1,6 @@
 import grpc
 import logging
 
-from threading import Thread
 from synapse.server.nodes import (
     StreamIn,
     StreamOut,
@@ -57,7 +56,7 @@ class SynapseServicer(SynapseDeviceServicer):
         self.serial = serial
 
     def Info(self, request, context):
-        print(f"Info request received for {self.name} {self.serial}")
+        logging.info("Info()")
         return DeviceInfo(
             name=self.name,
             serial=self.serial,
@@ -77,6 +76,7 @@ class SynapseServicer(SynapseDeviceServicer):
         )
 
     def Configure(self, request, context):
+        logging.info("Configure()")
         if not self._reconfigure(request):
             return Status(
                 message="Failed to configure",
@@ -93,6 +93,7 @@ class SynapseServicer(SynapseDeviceServicer):
         )
 
     def Start(self, request, context):
+        logging.info("Start()")
         if not self._start_streaming():
             return Status(
                 message="Failed to start streaming",
@@ -108,6 +109,7 @@ class SynapseServicer(SynapseDeviceServicer):
         )
 
     def Stop(self, request, context):
+        logging.info("Stop()")
         if not self._stop_streaming():
             return Status(
                 message="Failed to stop streaming",
@@ -125,7 +127,7 @@ class SynapseServicer(SynapseDeviceServicer):
     def _reconfigure(self, configuration):
         self.state = DeviceState.kInitializing
 
-        logging.info("Reconfiguring device...")
+        logging.info("Reconfiguring device... with", configuration)
         for node in self.nodes:
             node.stop()
 
@@ -137,11 +139,16 @@ class SynapseServicer(SynapseDeviceServicer):
                 logging.error("Unknown node type: %s" % NodeType.Name(node.type))
                 logging.error("Failed to configure.")
                 return False
+
+            config_key = node.WhichOneof("config")
+            config = getattr(node, config_key) if config_key else None
+
             logging.info(
-                "Creating %s node(%d)..." % (NodeType.Name(node.type), node.id)
+                "Creating %s node(%d)" % (NodeType.Name(node.type), node.id)
             )
-            node = NODE_TYPE_OBJECT_MAP[node.type](node.id)
+            node = NODE_TYPE_OBJECT_MAP[node.type](node.id, config)
             self.nodes.append(node)
+
         for connection in configuration.connections:
             source_node = next(
                 (node for node in self.nodes if node.id == connection.src_node_id), None

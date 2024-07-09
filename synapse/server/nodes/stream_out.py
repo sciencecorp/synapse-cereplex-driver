@@ -1,46 +1,76 @@
-import zmq
-import queue
-import threading
 import logging
+import queue
+import socket
+import threading
 from synapse.server.nodes import BaseNode
 from synapse.generated.api.node_pb2 import NodeType
+from synapse.generated.api.nodes.stream_out_pb2 import StreamOutConfig
 
+PORT = 6480
+MULTICAST_TTL = 3
 
 class StreamOut(BaseNode):
-
-    def __init__(self, id):
+    def __init__(self, id, config = StreamOutConfig()):
         super().__init__(id, NodeType.kStreamOut)
-        self.stop_event = threading.Event()
-        self.data_queue = queue.Queue()
+        self.__stop_event = threading.Event()
+        self.__data_queue = queue.Queue()
+        self.__multicast_group = None
+        self.socket = PORT
+
+        self.reconfigure(config)
+
+    def config(self):
+        c = super().config()
+        o = StreamOutConfig()
+        if self.__multicast_group:
+            o.multicast_group = self.__multicast_group
+        c.stream_out.CopyFrom(o)
+        return c
+    
+    def reconfigure(self, config: StreamOutConfig):
+        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+
+        multicast_group = config.multicast_group
+        if multicast_group:
+            self.__multicast_group = multicast_group
+            self.__socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
+            logging.info(f"StreamOut (node {self.id}): created multicast socket with group {multicast_group}")
+
+        else:
+            host = socket.gethostbyname(socket.gethostname())
+            logging.info(f"StreamOut (node {self.id}): created unicast socket on {host}:{self.socket}")
 
     def start(self):
-        ctx = zmq.Context.instance()
-        self.socket = ctx.socket(zmq.PUB)
-        self.socket.bind_to_random_port(
-            "tcp://127.0.0.1", min_port=64401, max_port=64799, max_tries=100
-        )
+        logging.info("StreamOut (node %d): starting..." % self.id)
 
         self.thread = threading.Thread(target=self.run, args=())
         self.thread.start()
 
+        logging.info("StreamOut (node %d): started" % self.id)
+
     def stop(self):
+        logging.info("StreamOut (node %d): stopping..." % self.id)
         if not hasattr(self, "thread") or not self.thread.is_alive():
             return
-        self.stop_event.set()
+
+        self.__stop_event.set()
         self.thread.join()
-        self.socket.close()
-        self.socket = None
+        self.__socket.close()
+        self.__socket = None
+        logging.info("StreamOut (node %d): stopped" % self.id)
 
     def on_data_received(self, data):
-        self.data_queue.put(data)
+        self.__data_queue.put(data)
 
     def run(self):
-        while not self.stop_event.is_set():
+        logging.info("StreamOut (node %d): starting to send data..." % self.id)
+        while not self.__stop_event.is_set():
             try:
-                data = self.data_queue.get(True, 1)
+                data = self.__data_queue.get(True, 1)
             except queue.Empty:
                 continue
             try:
-                self.socket.send(data)
-            except zmq.ZMQError as e:
+                addr = self.__multicast_group if self.__multicast_group else ''
+                self.__socket.sendto(data, (addr, PORT))
+            except Exception as e:
                 logging.error(f"Error sending data: {e}")

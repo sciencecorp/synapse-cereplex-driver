@@ -3,11 +3,12 @@ import logging
 import threading
 from synapse.server.nodes import BaseNode
 from synapse.generated.api.node_pb2 import NodeType
+from synapse.generated.api.nodes.electrical_broadband_pb2 import ElectricalBroadbandConfig
 
 
 class ElectricalBroadband(BaseNode):
 
-    def __init__(self, id):
+    def __init__(self, id, config = ElectricalBroadbandConfig()):
         super().__init__(id, NodeType.kElectricalBroadband)
         self.stop_event = threading.Event()
 
