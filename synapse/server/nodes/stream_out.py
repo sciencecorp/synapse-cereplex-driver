@@ -6,7 +6,7 @@ from synapse.server.nodes import BaseNode
 from synapse.generated.api.node_pb2 import NodeType
 from synapse.generated.api.nodes.stream_out_pb2 import StreamOutConfig
 
-UNICAST_PORT = 6480
+PORT = 6480
 MULTICAST_TTL = 3
 
 class StreamOut(BaseNode):
@@ -15,6 +15,7 @@ class StreamOut(BaseNode):
         self.__stop_event = threading.Event()
         self.__data_queue = queue.Queue()
         self.__multicast_group = None
+        self.socket = PORT
 
         self.reconfigure(config)
 
@@ -31,18 +32,13 @@ class StreamOut(BaseNode):
 
         multicast_group = config.multicast_group
         if multicast_group:
-            [group, port_str] = multicast_group.split(":")
-            port = int(port_str)
-
-            self.socket = (group, port)
             self.__multicast_group = multicast_group
             self.__socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL)
             logging.info(f"StreamOut (node {self.id}): created multicast socket with group {multicast_group}")
 
         else:
             host = socket.gethostbyname(socket.gethostname())
-            self.socket = (host, UNICAST_PORT)
-            logging.info(f"StreamOut (node {self.id}): created unicast socket on {host}:{UNICAST_PORT}")
+            logging.info(f"StreamOut (node {self.id}): created unicast socket on {host}:{self.socket}")
 
     def start(self):
         logging.info("StreamOut (node %d): starting..." % self.id)
@@ -74,6 +70,7 @@ class StreamOut(BaseNode):
             except queue.Empty:
                 continue
             try:
-                self.__socket.sendto(data, self.socket)
+                addr = self.__multicast_group if self.__multicast_group else ''
+                self.__socket.sendto(data, (addr, PORT))
             except Exception as e:
                 logging.error(f"Error sending data: {e}")

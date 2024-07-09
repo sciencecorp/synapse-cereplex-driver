@@ -46,12 +46,12 @@ class StreamIn(BaseNode):
             self.__socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
             self.__multicast_group = multicast_group
-            self.socket = (group, port)
+            self.socket = port
             logging.info(f"StreamIn (node {self.id}): - joined multicast group {group}:{port}")
 
         else:
             self.__socket.bind(("", 0))
-            self.socket = (host, self.__socket.getsockname()[1])
+            self.socket = self.__socket.getsockname()[1]
             logging.info(f"StreamIn (node {self.id}): - listening on {self.socket}")
         
 

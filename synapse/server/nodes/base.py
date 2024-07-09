@@ -1,5 +1,6 @@
 from typing import Tuple
-from synapse.generated.api.node_pb2 import NodeConfig, NodeType, NodeSocket, DataType
+from synapse.generated.api.datatype_pb2 import DataType
+from synapse.generated.api.node_pb2 import NodeConfig, NodeType, NodeSocket
 
 class BaseNode(object):
     def __init__(self, id, type) -> None:
@@ -28,9 +29,10 @@ class BaseNode(object):
     def node_socket(self):
         if self.socket is None:
             return False
+
         return NodeSocket(
             node_id=self.id,
             data_type=DataType.kAny,
-            bind=f"{self.socket[0]}:{self.socket[1]}",
+            bind=self.socket,
             type=self.type,
         )

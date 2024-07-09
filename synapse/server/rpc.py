@@ -1,7 +1,6 @@
 import grpc
 import logging
 
-from threading import Thread
 from synapse.server.nodes import (
     StreamIn,
     StreamOut,
@@ -128,7 +127,7 @@ class SynapseServicer(SynapseDeviceServicer):
     def _reconfigure(self, configuration):
         self.state = DeviceState.kInitializing
 
-        logging.info("Reconfiguring device...")
+        logging.info("Reconfiguring device... with", configuration)
         for node in self.nodes:
             node.stop()
 
