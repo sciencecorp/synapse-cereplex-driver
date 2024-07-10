@@ -27,27 +27,27 @@ class StreamIn(BaseNode):
         return c
 
     def reconfigure(self, config: StreamInConfig = StreamInConfig()):
-
         host = socket.gethostbyname(socket.gethostname())
 
         self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
+
         multicast_group = config.multicast_group
         if multicast_group:
-            [group, port_str] = multicast_group.split(":")
-            port = int(port_str)
-            self.__socket.bind((group, port))
+            addr = multicast_group
+            self.__socket.bind((addr, 0))
+            port = self.__socket.getsockname()[1]
 
             host = socket.gethostbyname(socket.gethostname())
-            mreq = socket.inet_aton(group) + socket.inet_aton(host)
-            mreq = struct.pack("4sL", socket.inet_aton(group), socket.INADDR_ANY)
+            mreq = socket.inet_aton(addr) + socket.inet_aton(host)
+            mreq = struct.pack("4sL", socket.inet_aton(addr), socket.INADDR_ANY)
             self.__socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
             self.__multicast_group = multicast_group
             self.socket = port
-            logging.info(f"StreamIn (node {self.id}): - joined multicast group {group}:{port}")
+            logging.info(f"StreamIn (node {self.id}): - joined multicast group {addr}:{port}")
 
         else:
             self.__socket.bind(("", 0))
