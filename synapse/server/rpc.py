@@ -8,12 +8,11 @@ from synapse.server.nodes import (
     ElectricalBroadband,
 )
 from synapse.generated.api.synapse_pb2 import (
-    Status,
-    StatusCode,
     DeviceConfiguration,
     DeviceInfo,
-    DeviceState,
 )
+from synapse.generated.api.status_pb2 import Status, StatusCode, DeviceState
+from synapse.generated.api.query_pb2 import QueryResponse
 from synapse.generated.api.node_pb2 import NodeType
 from synapse.generated.api.synapse_pb2_grpc import (
     SynapseDeviceServicer,
@@ -70,8 +69,7 @@ class SynapseServicer(SynapseDeviceServicer):
             ),
             peripherals=[],
             configuration=DeviceConfiguration(
-                nodes=[node.config() for node in self.nodes],
-                connections=[]
+                nodes=[node.config() for node in self.nodes], connections=[]
             ),
         )
 
@@ -124,6 +122,16 @@ class SynapseServicer(SynapseDeviceServicer):
             state=self.state,
         )
 
+    def Query(self, request, context):
+        logging.info("Query()")
+        # handle query
+        return Status(
+            message=None,
+            code=StatusCode.kOk,
+            sockets=self._sockets_status_info(),
+            state=self.state,
+        )
+
     def _reconfigure(self, configuration):
         self.state = DeviceState.kInitializing
 
@@ -143,9 +151,7 @@ class SynapseServicer(SynapseDeviceServicer):
             config_key = node.WhichOneof("config")
             config = getattr(node, config_key) if config_key else None
 
-            logging.info(
-                "Creating %s node(%d)" % (NodeType.Name(node.type), node.id)
-            )
+            logging.info("Creating %s node(%d)" % (NodeType.Name(node.type), node.id))
             node = NODE_TYPE_OBJECT_MAP[node.type](node.id, config)
             self.nodes.append(node)
 

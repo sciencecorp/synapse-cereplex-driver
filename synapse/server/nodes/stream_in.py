@@ -7,8 +7,9 @@ from synapse.generated.api.node_pb2 import NodeType
 from synapse.generated.api.nodes.stream_in_pb2 import StreamInConfig
 from synapse.server.nodes import BaseNode
 
+
 class StreamIn(BaseNode):
-    def __init__(self, id, config = StreamInConfig()):
+    def __init__(self, id, config=StreamInConfig()):
         super().__init__(id, NodeType.kStreamIn)
         self.__socket = None
         self.__stop_event = threading.Event()
@@ -18,7 +19,7 @@ class StreamIn(BaseNode):
 
     def config(self):
         c = super().config()
-        
+
         i = StreamInConfig()
         if self.__multicast_group:
             i.multicast_group = self.__multicast_group
@@ -29,31 +30,17 @@ class StreamIn(BaseNode):
     def reconfigure(self, config: StreamInConfig = StreamInConfig()):
         host = socket.gethostbyname(socket.gethostname())
 
-        self.__socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.__socket = socket.socket(
+            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
+        )
         self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.__socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        self.__socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
 
-
-        multicast_group = config.multicast_group
-        if multicast_group:
-            addr = multicast_group
-            self.__socket.bind((addr, 0))
-            port = self.__socket.getsockname()[1]
-
-            host = socket.gethostbyname(socket.gethostname())
-            mreq = socket.inet_aton(addr) + socket.inet_aton(host)
-            mreq = struct.pack("4sL", socket.inet_aton(addr), socket.INADDR_ANY)
-            self.__socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
-
-            self.__multicast_group = multicast_group
-            self.socket = port
-            logging.info(f"StreamIn (node {self.id}): - joined multicast group {addr}:{port}")
-
-        else:
-            self.__socket.bind(("", 0))
-            self.socket = self.__socket.getsockname()[1]
-            logging.info(f"StreamIn (node {self.id}): - listening on {self.socket}")
-        
+        self.__socket.bind(("", 0))
+        logging.info(
+            f"StreamIn (node {self.id}): - listening on {self.__socket.getsockname()}"
+        )
 
     def start(self):
         logging.info("StreamIn (node %d): starting..." % self.id)
@@ -78,10 +65,10 @@ class StreamIn(BaseNode):
                 ready = select.select([self.__socket], [], [], 1)
                 if ready[0]:
                     data, _ = self.__socket.recvfrom(1024)
-                    
+
                     self.emit_data(data)
                     pass
             except Exception as e:
                 logging.error(f"Error receiving data: {e}")
-    
+
         logging.info("StreamIn (node %d): exited thread" % self.id)

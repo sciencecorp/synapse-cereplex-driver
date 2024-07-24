@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+import "api/datatype.proto";
+
+package synapse;
+
+message StreamOutConfig {
+  repeated uint32 shape = 1;
+  DataType data_type = 2;
+  bool use_multicast = 3;
+  string multicast_group = 4;
+}
