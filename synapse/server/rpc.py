@@ -119,12 +119,28 @@ class SynapseServicer(SynapseDeviceServicer):
 
     def Query(self, request, context):
         logging.info("Query()")
+
+        if self.state != DeviceState.kRunning:
+            return QueryResponse(
+                data=None,
+                status=Status(
+                    message="Device is not running",
+                    code=StatusCode.kUndefinedError,
+                    sockets=self._sockets_status_info(),
+                    state=self.state,
+                ),
+            )
+
         # handle query
-        return Status(
-            message=None,
-            code=StatusCode.kOk,
-            sockets=self._sockets_status_info(),
-            state=self.state,
+
+        return QueryResponse(
+            data=[1, 2, 3, 4, 5],
+            status=Status(
+                message=None,
+                code=StatusCode.kOk,
+                sockets=self._sockets_status_info(),
+                state=self.state,
+            ),
         )
 
     def _reconfigure(self, configuration):
