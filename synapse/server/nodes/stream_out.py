@@ -34,26 +34,27 @@ class StreamOut(BaseNode):
             socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
         )
 
-        multicast_group = config.multicast_group
-        if multicast_group:
-            self.__multicast_group = multicast_group
+        if config.multicast_group:
+            self.__multicast_group = config.multicast_group
             self.__socket.setsockopt(
                 socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
             )
-            self.__socket.bind(("", 0))
-            addr, port = self.__socket.getsockname()
 
-            host = socket.gethostbyname(socket.gethostname())
-            mreq = socket.inet_aton(addr) + socket.inet_aton(host)
-            mreq = struct.pack("4sL", socket.inet_aton(addr), socket.INADDR_ANY)
+            self.__socket.bind(("", 0))
+            addr, _ = self.__socket.getsockname()
+            mreq = struct.pack(
+                "4s4s",
+                socket.inet_aton(self.__multicast_group),
+                socket.inet_aton(addr),
+            )
             self.__socket.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
             logging.info(
-                f"StreamOut (node {self.id}): created multicast socket with group {multicast_group}"
+                f"StreamOut (node {self.id}): created multicast socket with group {self.__multicast_group}"
             )
 
         else:
-            host = socket.gethostbyname(socket.gethostname())
+            self.__socket.bind(("", 0))
             logging.info(
                 f"StreamOut (node {self.id}): created unicast socket on {host}:{self.socket}"
             )

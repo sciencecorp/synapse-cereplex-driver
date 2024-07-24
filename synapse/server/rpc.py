@@ -169,6 +169,9 @@ class SynapseServicer(SynapseDeviceServicer):
             % (len(configuration.nodes), len(self.nodes))
         )
         self.configuration = configuration
+
+        self.state = DeviceState.kStopped
+
         return True
 
     def _start_streaming(self):
