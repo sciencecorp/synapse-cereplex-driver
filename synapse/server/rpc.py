@@ -43,12 +43,7 @@ class SynapseServicer(SynapseDeviceServicer):
 
     state = DeviceState.kInitializing
     configuration = None
-    nodes = [
-        StreamIn(1),
-        StreamOut(2),
-        OpticalStimulation(3),
-        ElectricalBroadband(4),
-    ]
+    nodes = []
 
     def __init__(self, name, serial):
         self.name = name
