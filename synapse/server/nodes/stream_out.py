@@ -55,8 +55,6 @@ class StreamOut(BaseNode):
             )
 
             self.socket = [self.multicastGroup, port]
-            sockname = self.__socket.getsockname()
-            self.socket = [self.multicastGroup, sockname[1]]
 
             logging.info(
                 f"StreamOut (node {self.id}): created multicast socket on {self.socket}, group {self.multicastGroup}"
