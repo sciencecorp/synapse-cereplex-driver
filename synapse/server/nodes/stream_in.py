@@ -1,7 +1,6 @@
 import logging
 import select
 import socket
-import struct
 import threading
 from synapse.generated.api.node_pb2 import NodeType
 from synapse.generated.api.nodes.stream_in_pb2 import StreamInConfig
@@ -13,7 +12,8 @@ class StreamIn(BaseNode):
         super().__init__(id, NodeType.kStreamIn)
         self.__socket = None
         self.__stop_event = threading.Event()
-        self.__multicast_group = None
+        self.data_type = config.data_type
+        self.shape = config.shape
 
         self.reconfigure(config)
 
@@ -21,15 +21,13 @@ class StreamIn(BaseNode):
         c = super().config()
 
         i = StreamInConfig()
-        if self.__multicast_group:
-            i.multicast_group = self.__multicast_group
+        i.data_type = self.data_type
+        i.shape.extend(self.shape)
 
         c.stream_in.CopyFrom(i)
         return c
 
     def reconfigure(self, config: StreamInConfig = StreamInConfig()):
-        host = socket.gethostbyname(socket.gethostname())
-
         self.__socket = socket.socket(
             socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
         )
@@ -38,8 +36,9 @@ class StreamIn(BaseNode):
         self.__socket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
 
         self.__socket.bind(("", 0))
+        self.socket = self.__socket.getsockname()
         logging.info(
-            f"StreamIn (node {self.id}): - listening on {self.__socket.getsockname()}"
+            f"StreamIn (node {self.id}): - listening on {self.socket}"
         )
 
     def start(self):

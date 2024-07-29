@@ -33,6 +33,6 @@ class BaseNode(object):
         return NodeSocket(
             node_id=self.id,
             data_type=DataType.kAny,
-            bind=self.socket,
+            bind=f"{self.socket[0]}:{self.socket[1]}",
             type=self.type,
         )
