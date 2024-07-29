@@ -7,6 +7,9 @@ from synapse.server.nodes import (
     OpticalStimulation,
     ElectricalBroadband,
 )
+from synapse.generated.api.node_pb2 import (
+    NodeConnection,
+)
 from synapse.generated.api.synapse_pb2 import (
     DeviceConfiguration,
     DeviceInfo,
@@ -43,6 +46,7 @@ class SynapseServicer(SynapseDeviceServicer):
 
     state = DeviceState.kInitializing
     configuration = None
+    connections = []
     nodes = []
 
     def __init__(self, name, serial):
@@ -51,6 +55,10 @@ class SynapseServicer(SynapseDeviceServicer):
 
     def Info(self, request, context):
         logging.info("Info()")
+        connections = [
+            NodeConnection(src_node_id=src, dst_node_id=dst)
+            for src, dst in self.connections
+        ]
         return DeviceInfo(
             name=self.name,
             serial=self.serial,
@@ -64,7 +72,7 @@ class SynapseServicer(SynapseDeviceServicer):
             ),
             peripherals=[],
             configuration=DeviceConfiguration(
-                nodes=[node.config() for node in self.nodes], connections=[]
+                nodes=[node.config() for node in self.nodes], connections=connections
             ),
         )
 
@@ -151,6 +159,7 @@ class SynapseServicer(SynapseDeviceServicer):
             node.stop()
 
         self.nodes = []
+        self.connections = []
 
         logging.info("Creating nodes...")
         for node in configuration.nodes:
@@ -180,6 +189,8 @@ class SynapseServicer(SynapseDeviceServicer):
                 )
                 return False
             source_node.emit_data = target_node.on_data_received
+
+            self.connections.append([source_node.id, target_node.id])
         logging.info(
             "%d nodes received, %d currently loaded"
             % (len(configuration.nodes), len(self.nodes))
