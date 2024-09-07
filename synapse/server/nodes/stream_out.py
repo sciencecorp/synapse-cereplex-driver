@@ -1,9 +1,10 @@
-import logging
 import queue
 import socket
+import struct
 import threading
-from typing import List
+from typing import List, Tuple
 from synapse.server.nodes import BaseNode
+from synapse.server.status import Status
 from synapse.generated.api.datatype_pb2 import DataType
 from synapse.generated.api.node_pb2 import NodeType
 from synapse.generated.api.nodes.stream_out_pb2 import StreamOutConfig
@@ -14,26 +15,17 @@ MULTICAST_TTL = 3
 class StreamOut(BaseNode):
     __n = 0
 
-    def __init__(self, id, config = StreamOutConfig()):
+    def __init__(self, id):
         super().__init__(id, NodeType.kStreamOut)
         self.__i = StreamOut.__n
         StreamOut.__n += 1
         self.__stop_event = threading.Event()
         self.__data_queue = queue.Queue()
 
-        self.data_type: DataType = config.data_type
-        self.multicastGroup: str = config.multicast_group if config.use_multicast else None
-        self.shape: List[int] = config.shape
-
-        self.reconfigure(config)
-
-
     def config(self):
         c = super().config()
 
         o = StreamOutConfig()
-        o.data_type = self.data_type
-        o.shape.extend(self.shape)
 
         if self.multicastGroup:
             o.multicast_group = self.multicastGroup
@@ -41,7 +33,9 @@ class StreamOut(BaseNode):
         c.stream_out.CopyFrom(o)
         return c
 
-    def reconfigure(self, config: StreamOutConfig):
+    def configure(self, config: StreamOutConfig) -> Status:
+        self.multicastGroup: str = config.multicast_group if config.use_multicast else None
+
         self.__socket = socket.socket(
             socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
         )
@@ -56,28 +50,32 @@ class StreamOut(BaseNode):
 
             self.socket = [self.multicastGroup, port]
 
-            logging.info(
-                f"StreamOut (node {self.id}): created multicast socket on {self.socket}, group {self.multicastGroup}"
+            self.logger.info(
+                f"created multicast socket on {self.socket}, group {self.multicastGroup}"
             )
 
         else:
+            self.__socket.bind(('', port))
             self.socket = [self.__socket.getsockname()[0], port]
 
-            logging.info(
-                f"StreamOut (node {self.id}): created unicast socket on {self.socket}"
+            self.logger.info(
+                f"created unicast socket on {self.socket}"
             )
-            
 
-    def start(self):
-        logging.info("StreamOut (node %d): starting..." % self.id)
+        return Status()
+
+    def start(self) -> Status:
+        self.logger.info("starting...")
 
         self.thread = threading.Thread(target=self.run, args=())
         self.thread.start()
 
-        logging.info("StreamOut (node %d): started" % self.id)
+        self.logger.info("started")
 
-    def stop(self):
-        logging.info("StreamOut (node %d): stopping..." % self.id)
+        return Status()
+
+    def stop(self) -> Status:
+        self.logger.info("stopping...")
         if not hasattr(self, "thread") or not self.thread.is_alive():
             return
 
@@ -85,27 +83,58 @@ class StreamOut(BaseNode):
         self.thread.join()
         self.__socket.close()
         self.__socket = None
-        logging.info("StreamOut (node %d): stopped" % self.id)
+        self.logger.info("stopped")
+
+        return Status()
 
     def on_data_received(self, data):
+        self.logger.info("Data received in StreamOut")
         self.__data_queue.put(data)
 
     def run(self):
-        logging.info("StreamOut (node %d): starting to send data..." % self.id)
+        self.logger.info("starting to send data...")
         while not self.__stop_event.is_set():
             if not self.socket:
-                logging.error("StreamOut (node %d): socket not configured" % self.id)
+                self.logger.error("socket not configured")
                 return
             try:
                 data = self.__data_queue.get(True, 1)
             except queue.Empty:
+                self.logger.warning("queue is empty")
                 continue
+
+            # detect data type arriving at you (should be packaged in `data` above)
+            # encode it appropriately for NDTP
+            encoded_data = self.serialize_broadband_data(data)
+
             try:
                 addr = self.multicastGroup if self.multicastGroup else ''
                 port = self.socket[1]
-                self.__socket.sendto(data, (addr, port))
+                self.logger.info("sending data to")
+                self.logger.info(addr)
+                self.logger.info(port)
+
+                self.__socket.sendto(encoded_data, (addr, port))
                 if not self.socket:
                     self.socket = self.__socket.getsockname()
 
             except Exception as e:
-                logging.error(f"Error sending data: {e}")
+                self.logger.error(f"Error sending data: {e}")
+
+    def serialize_broadband_data(self, data: List[Tuple[int, List[int]]]) -> bytes:
+        self.logger.info("trying to serialize broadband")
+        if len(data) == 0:
+            return bytes()
+
+        result = bytearray()
+        result.extend(struct.pack('l', len(data)))
+
+        for ch_packet in data:
+                c = ch_packet[0] - 1
+                ch_data = ch_packet[1:]
+                result.extend(struct.pack('l', c))
+
+                for value in ch_data:
+                    result.extend(struct.pack('l', value))
+
+        return bytes(result)

@@ -1,6 +1,8 @@
+import logging
 from typing import Tuple
 from synapse.generated.api.datatype_pb2 import DataType
 from synapse.generated.api.node_pb2 import NodeConfig, NodeType, NodeSocket
+from synapse.server.status import Status, StatusCode
 
 class BaseNode(object):
     def __init__(self, id, type) -> None:
@@ -8,17 +10,22 @@ class BaseNode(object):
         self.type: NodeType = type
         self.socket: Tuple[str, int] = None
 
+        self.logger = logging.getLogger(f'(type {type})')
+
     def config(self) -> NodeConfig:
         return NodeConfig(
             id=self.id,
             type=self.type,
         )
+    
+    def configure(self, config) -> Status:
+        raise NotImplementedError
 
     def start(self):
-        pass
+        raise NotImplementedError
 
     def stop(self):
-        pass
+        raise NotImplementedError
 
     def on_data_received(self):
         pass
