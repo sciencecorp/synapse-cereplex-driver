@@ -4,7 +4,6 @@ import logging
 from synapse.server.nodes import (
     StreamIn,
     StreamOut,
-    OpticalStimulation,
     ElectricalBroadband,
     ElectricalBroadbandPeripherals,
 )
