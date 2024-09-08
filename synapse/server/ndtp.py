@@ -2,6 +2,7 @@ from struct import Struct
 
 NDTPHeaderStruct = Struct("<cQBHH")
 
+
 @dataclass
 class NDTPHeader:
     version: int
@@ -13,10 +14,9 @@ class NDTPHeader:
 
     # @staticmethod
     # def unpack(data: bytes):
-    #     version_and_data_type, timestamp, seq_number, ch_count, dtype_custom = NDTPHeaderStruct.unpack(data) 
+    #     version_and_data_type, timestamp, seq_number, ch_count, dtype_custom = NDTPHeaderStruct.unpack(data)
     #     return NDTPHeader(
     #         version,
-
     #     )
 
 
@@ -25,6 +25,3 @@ class NDTPMessage:
     header: NDTPHeader
     payload: bytes
     crc16: int
-
-
-

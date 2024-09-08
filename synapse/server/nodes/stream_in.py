@@ -37,9 +37,7 @@ class StreamIn(BaseNode):
 
         self.__socket.bind(("", 0))
         self.socket = self.__socket.getsockname()
-        self.logger.info(
-            f"listening on {self.socket}"
-        )
+        self.logger.info(f"listening on {self.socket}")
 
         return Status()
 

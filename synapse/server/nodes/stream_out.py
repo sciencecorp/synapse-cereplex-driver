@@ -12,6 +12,7 @@ from synapse.generated.api.nodes.stream_out_pb2 import StreamOutConfig
 PORT = 6480
 MULTICAST_TTL = 3
 
+
 class StreamOut(BaseNode):
     __n = 0
 
@@ -34,7 +35,9 @@ class StreamOut(BaseNode):
         return c
 
     def configure(self, config: StreamOutConfig) -> Status:
-        self.multicastGroup: str = config.multicast_group if config.use_multicast else None
+        self.multicastGroup: str = (
+            config.multicast_group if config.use_multicast else None
+        )
 
         self.__socket = socket.socket(
             socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
@@ -55,12 +58,10 @@ class StreamOut(BaseNode):
             )
 
         else:
-            self.__socket.bind(('', port))
+            self.__socket.bind(("", port))
             self.socket = [self.__socket.getsockname()[0], port]
 
-            self.logger.info(
-                f"created unicast socket on {self.socket}"
-            )
+            self.logger.info(f"created unicast socket on {self.socket}")
 
         return Status()
 
@@ -88,7 +89,6 @@ class StreamOut(BaseNode):
         return Status()
 
     def on_data_received(self, data):
-        self.logger.info("Data received in StreamOut")
         self.__data_queue.put(data)
 
     def run(self):
@@ -99,16 +99,21 @@ class StreamOut(BaseNode):
                 return
             try:
                 data = self.__data_queue.get(True, 1)
+                self.logger.info(f"Data received in StreamOut, type={data[0]}")
             except queue.Empty:
                 self.logger.warning("queue is empty")
                 continue
 
-            # detect data type arriving at you (should be packaged in `data` above)
-            # encode it appropriately for NDTP
-            encoded_data = self.serialize_broadband_data(data)
+            if data[0] == DataType.kBroadband:
+                # detect data type arriving at you (should be packaged in `data` above)
+                # encode it appropriately for NDTP
+                encoded_data = self.serialize_broadband_data(data)
+            else:
+                self.logger.error(f"Unsupported data type, dropping: {data[0]}")
+                continue
 
             try:
-                addr = self.multicastGroup if self.multicastGroup else ''
+                addr = self.multicastGroup if self.multicastGroup else ""
                 port = self.socket[1]
                 self.logger.info("sending data to")
                 self.logger.info(addr)
@@ -127,14 +132,14 @@ class StreamOut(BaseNode):
             return bytes()
 
         result = bytearray()
-        result.extend(struct.pack('l', len(data)))
+        result.extend(struct.pack("l", len(data)))
 
         for ch_packet in data:
-                c = ch_packet[0] - 1
-                ch_data = ch_packet[1:]
-                result.extend(struct.pack('l', c))
+            c = ch_packet[0] - 1
+            ch_data = ch_packet[1:]
+            result.extend(struct.pack("l", c))
 
-                for value in ch_data:
-                    result.extend(struct.pack('l', value))
+            for value in ch_data:
+                result.extend(struct.pack("l", value))
 
         return bytes(result)

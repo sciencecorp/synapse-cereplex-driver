@@ -1,11 +1,8 @@
-# Simple Synapse device
-
-Intended primarily for development and testing, could potentially be extended for use cases like Blackrock or Intan drivers.
+# Blackrock (CerePlex) Synapse Devie
 
 To build:
 
-    git submodule init
-    git submodule update
+    git submodule update --init
     pip install -r requirements.txt
 
 On Unix machines:

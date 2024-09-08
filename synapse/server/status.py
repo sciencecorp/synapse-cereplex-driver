@@ -1,10 +1,14 @@
 import logging
-from synapse.generated.api.status_pb2 import Status as PBStatus, StatusCode as PBStatusCode
+from synapse.generated.api.status_pb2 import (
+    Status as PBStatus,
+    StatusCode as PBStatusCode,
+)
 
 StatusCode = PBStatusCode
 
+
 class Status(object):
-    def __init__(self, code = PBStatusCode.kOk, message = ""):
+    def __init__(self, code=PBStatusCode.kOk, message=""):
         self._code = code
         self._message = message
 

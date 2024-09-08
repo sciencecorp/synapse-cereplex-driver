@@ -7,9 +7,14 @@ from cerebus import cbpy
 
 from synapse.server.nodes import BaseNode
 from synapse.generated.api.node_pb2 import NodeOptions, NodeType
-from synapse.generated.api.nodes.electrical_broadband_pb2 import ElectricalBroadbandConfig, ElectricalBroadbandOptions
+from synapse.generated.api.nodes.electrical_broadband_pb2 import (
+    ElectricalBroadbandConfig,
+    ElectricalBroadbandOptions,
+)
+from synapse.generated.api.datatype_pb2 import DataType
 from synapse.generated.api.synapse_pb2 import Peripheral
 from synapse.server.status import Status, StatusCode
+
 
 class SampleGroup(Enum):
     NONE = 0
@@ -19,12 +24,13 @@ class SampleGroup(Enum):
     SR10000Hz = 4
     SR30000Hz = 5
 
+
 CONFIG_MAP_SAMPLE_RATE = {
     500: SampleGroup.SR500Hz,
     1000: SampleGroup.SR1000Hz,
     2000: SampleGroup.SR2000Hz,
     10000: SampleGroup.SR10000Hz,
-    30000: SampleGroup.SR30000Hz
+    30000: SampleGroup.SR30000Hz,
 }
 
 PERIPHERALS = [
@@ -38,14 +44,11 @@ PERIPHERALS = [
             id=1,
             electrical_broadband=ElectricalBroadbandOptions(
                 ch_count=192,
-                bit_width=[
-                    16,  # Signed 16 bit
-                    64   # Double
-                ],
+                bit_width=[16, 64],  # Signed 16 bit  # Double
                 sample_rate=[500, 1000, 2000, 10000, 30000],
-                gain=[]
-            )
-        )
+                gain=[],
+            ),
+        ),
     )
 ]
 
@@ -65,7 +68,7 @@ class ElectricalBroadband(BaseNode):
         cbpy.close()
         self.logger.info("cerebus connection closed")
 
-    def configure(self, config = ElectricalBroadbandConfig()) -> Status:
+    def configure(self, config=ElectricalBroadbandConfig()) -> Status:
         return self._configure(config)
 
     def start(self) -> Status:
@@ -101,25 +104,30 @@ class ElectricalBroadband(BaseNode):
                     continue
 
                 if self.emit_data:
-                    self.emit_data(data)
+                    self.emit_data((DataType.kBroadband, data))
                     self.logger.debug("Data emitted to next node")
                 else:
                     self.logger.warn("emit_data is not set, data not sent")
 
-            except RuntimeError as e:
+            except Exception as e:
                 self.logger.warn(f"failed to read data: {e}")
 
-
-
     def _configure(self, config: ElectricalBroadbandConfig) -> Status:
-        self.logger.info(f"Configuring ElectricalBroadband node with configuration {config}")
+        self.logger.info(
+            f"Configuring ElectricalBroadband node with configuration {config}"
+        )
         id = config.peripheral_id
         if not id:
-            return Status(code=StatusCode.kUndefinedError, message="must provide peripheral_id")
+            return Status(
+                code=StatusCode.kUndefinedError, message="must provide peripheral_id"
+            )
 
         ps = [p for p in PERIPHERALS if p.peripheral_id == id]
         if len(ps) < 1:
-            return Status(code=StatusCode.kUndefinedError, message=f"must provide valid peripheral_id: must be {[p.peripheral_id for p in PERIPHERALS]}")
+            return Status(
+                code=StatusCode.kUndefinedError,
+                message=f"must provide valid peripheral_id: must be {[p.peripheral_id for p in PERIPHERALS]}",
+            )
 
         peripheral = ps[0]
         peripheral_options = peripheral.options.electrical_broadband
@@ -127,19 +135,28 @@ class ElectricalBroadband(BaseNode):
         # Validate sample rate
         sample_rate = config.sample_rate
         if sample_rate not in peripheral_options.sample_rate:
-            return Status(code=StatusCode.kUndefinedError, message=f"invalid sample_rate: must be one of {peripheral_options.sample_rate}")
+            return Status(
+                code=StatusCode.kUndefinedError,
+                message=f"invalid sample rate: must be one of {peripheral_options.sample_rate}",
+            )
 
         sample_group = CONFIG_MAP_SAMPLE_RATE[sample_rate]
 
         # Validate bit width
         bit_width = config.bit_width
         if bit_width not in peripheral_options.bit_width:
-            return Status(code=StatusCode.kUndefinedError, message=f"invalid bit_width: must be one of {peripheral_options.bit_width}")
+            return Status(
+                code=StatusCode.kUndefinedError,
+                message=f"invalid bit width: must be one of {peripheral_options.bit_width}",
+            )
 
         # Validate gain
         gain = config.gain
         if gain and gain not in peripheral_options.gain:
-            return Status(code=StatusCode.kUndefinedError, message=f"invalid gain: must be one of {peripheral_options.gain}")
+            return Status(
+                code=StatusCode.kUndefinedError,
+                message=f"invalid gain: must be one of {peripheral_options.gain}",
+            )
 
         # Validate Channels
         ch_map = {}
@@ -147,7 +164,10 @@ class ElectricalBroadband(BaseNode):
         for ch in config.channels:
             ch_id = ch.id
             if ch_id >= ch_count:
-                return Status(code=StatusCode.kUndefinedError, message=f"invalid channel id={ch_id}: must be less than {ch_count}")
+                return Status(
+                    code=StatusCode.kUndefinedError,
+                    message=f"invalid channel id={ch_id}: must be less than {ch_count}",
+                )
             ch_map[ch_id] = ch
 
         # Configure channels (on / off, sample group / rate)
@@ -165,46 +185,61 @@ class ElectricalBroadband(BaseNode):
         res, reset = cbpy.trial_config(
             reset=True,
             buffer_parameter={
-                'absolute_time': True,
-                'continuous_length': 30000,
-                'event_length': 0,
-                'double': bit_width == 64
+                "absolute_time": True,
+                "continuous_length": 30000,
+                "event_length": 0,
+                "double": bit_width == 64,
             },
             noevent=1,
             nocontinuous=0,
-            nocomment=1
+            nocomment=1,
         )
 
         if res != 0:
-            return Status(code=StatusCode.kUndefinedError, message=f"failed to configure system: code {res}")
+            return Status(
+                code=StatusCode.kUndefinedError,
+                message=f"failed to configure system: code {res}",
+            )
 
         return Status(code=StatusCode.kOk, message="Configuration successful")
 
-    def _configure_channel(self, peripheral: Peripheral, ch: int, sample_group: SampleGroup) -> Status:
+    def _configure_channel(
+        self, peripheral: Peripheral, ch: int, sample_group: SampleGroup
+    ) -> Status:
         # Synapse channels are 0 indexed
         # Blackrock channels are 1 indexed
         blackrock_ch_index = ch + 1
         res = None
         info = None
 
-        self.logger.debug(f"configuring channel {ch} (blackrock i: {blackrock_ch_index}) with group {sample_group}")
+        self.logger.debug(
+            f"configuring channel {ch} (blackrock i: {blackrock_ch_index}) with group {sample_group}"
+        )
         try:
             res, info = cbpy.get_channel_config(blackrock_ch_index)
 
             if res != 0:
-                return Status(code=StatusCode.kUndefinedError, message=f"failed to get config for channel {ch}: code {res}")
+                return Status(
+                    code=StatusCode.kUndefinedError,
+                    message=f"failed to get config for channel {ch}: code {res}",
+                )
 
-            info['smpgroup'] = sample_group.value
+            info["smpgroup"] = sample_group.value
 
         except RuntimeError as e:
-            return Status(code=StatusCode.kUndefinedError, message=f"failed to get config for channel {ch}: {e}")
+            return Status(
+                code=StatusCode.kUndefinedError,
+                message=f"failed to get config for channel {ch}: {e}",
+            )
 
         try:
             res = cbpy.set_channel_config(blackrock_ch_index, info)
 
         except RuntimeError as e:
-            return Status(code=StatusCode.kUndefinedError, message=f"failed to set config for channel {ch}: {e}")
-
+            return Status(
+                code=StatusCode.kUndefinedError,
+                message=f"failed to set config for channel {ch}: {e}",
+            )
 
         self.logger.debug(f" - configured channel {ch}")
 

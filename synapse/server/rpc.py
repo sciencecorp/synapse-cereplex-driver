@@ -6,7 +6,7 @@ from synapse.server.nodes import (
     StreamOut,
     OpticalStimulation,
     ElectricalBroadband,
-    ElectricalBroadbandPeripherals
+    ElectricalBroadbandPeripherals,
 )
 from synapse.generated.api.node_pb2 import (
     NodeConnection,
@@ -37,12 +37,13 @@ async def serve(server_name, device_serial, rpc_port) -> None:
 NODE_TYPE_OBJECT_MAP = {
     NodeType.kStreamIn: StreamIn,
     NodeType.kStreamOut: StreamOut,
-    NodeType.kOpticalStim: OpticalStimulation,
     NodeType.kElectricalBroadband: ElectricalBroadband,
 }
 
+
 class SynapseServicer(SynapseDeviceServicer):
     """Provides methods that implement functionality of a Synapse device server."""
+
     state = DeviceState.kInitializing
     configuration = None
     connections = []
@@ -167,19 +168,25 @@ class SynapseServicer(SynapseDeviceServicer):
         self.logger.info("Creating nodes...")
         for node in configuration.nodes:
             if node.type not in list(NODE_TYPE_OBJECT_MAP.keys()):
-                self.logger.error("Unknown node type: %s" % NodeType.Name(node.type))
+                self.logger.error(
+                    "Unsupported node type: %s" % NodeType.Name(node.type)
+                )
                 self.logger.error("Failed to configure.")
                 return False
 
             config_key = node.WhichOneof("config")
             config = getattr(node, config_key) if config_key else None
 
-            self.logger.info("Creating %s node(%d)" % (NodeType.Name(node.type), node.id))
+            self.logger.info(
+                "Creating %s node(%d)" % (NodeType.Name(node.type), node.id)
+            )
             node = NODE_TYPE_OBJECT_MAP[node.type](node.id)
             status = node.configure(config)
 
             if not status.ok():
-                self.logger.warning(f"Failed to configure node {node.id}: {status.message()}")
+                self.logger.warning(
+                    f"Failed to configure node {node.id}: {status.message()}"
+                )
             else:
                 self.nodes.append(node)
 
@@ -197,7 +204,9 @@ class SynapseServicer(SynapseDeviceServicer):
                 )
                 return False
 
-            self.logger.info(f"Connecting node {source_node.id} to node {target_node.id}")
+            self.logger.info(
+                f"Connecting node {source_node.id} to node {target_node.id}"
+            )
             source_node.emit_data = target_node.on_data_received
             self.connections.append([source_node.id, target_node.id])
 
