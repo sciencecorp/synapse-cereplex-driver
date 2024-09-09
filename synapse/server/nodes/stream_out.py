@@ -128,14 +128,12 @@ class StreamOut(BaseNode):
             return bytes()
 
         result = bytearray()
-        self.logger.info([b"0", DataType.kBroadband, t0, b"0", len(data), len(data[0])])
-        result.extend(struct.pack("=ciqchh", b"0", DataType.kBroadband, t0, b"0", len(data), len(data[0])))
+        result.extend(struct.pack("=Iiqch", 0xC0FFEE00, DataType.kBroadband, t0, b"0", len(data)))
 
         for ch_packet in data:
             c = ch_packet[0] - 1
             ch_data = ch_packet[1]
-            self.logger.info([c, ch_data])
-            result.extend(struct.pack("i", c))
+            result.extend(struct.pack("ii", c, len(ch_data)))
 
             for value in ch_data:
                 result.extend(struct.pack("h", value))
