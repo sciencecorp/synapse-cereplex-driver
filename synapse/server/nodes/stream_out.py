@@ -1,3 +1,4 @@
+import sys
 import queue
 import socket
 import struct
@@ -102,11 +103,14 @@ class StreamOut(BaseNode):
                 self.logger.warning("queue is empty")
                 continue
 
+            if data is None or len(data) < 1:
+                continue
+
             if data[0] == DataType.kBroadband:
                 # detect data type arriving at you (should be packaged in `data` above)
                 # encode it appropriately for NDTP
                 data_type, t0, samples = data
-                encoded_data = self.serialize_broadband_data(t0, samples)
+                encoded_data = self.serialize_broadband_ndtp(t0, samples)
             else:
                 self.logger.error(f"Unsupported data type, dropping: {data[0]}")
                 continue
@@ -119,19 +123,21 @@ class StreamOut(BaseNode):
             except Exception as e:
                 self.logger.error(f"Error sending data: {e}")
 
-    def serialize_broadband_data(self, t0, data: List[Tuple[int, List[int]]]) -> bytes:
+    def serialize_broadband_ndtp(self, t0, data: List[Tuple[int, List[int]]]) -> bytes:
         if len(data) == 0:
             return bytes()
 
         result = bytearray()
-        result.extend(struct.pack("ciqchh", b"0", DataType.kBroadband, t0, b"0", len(data), len(data[0])))
+        self.logger.info([b"0", DataType.kBroadband, t0, b"0", len(data), len(data[0])])
+        result.extend(struct.pack("=ciqchh", b"0", DataType.kBroadband, t0, b"0", len(data), len(data[0])))
 
-        # for ch_packet in data:
-        #     c = ch_packet[0] - 1
-        #     ch_data = ch_packet[1:]
-        #     result.extend(struct.pack("l", c))
+        for ch_packet in data:
+            c = ch_packet[0] - 1
+            ch_data = ch_packet[1]
+            self.logger.info([c, ch_data])
+            result.extend(struct.pack("i", c))
 
-        #     for value in ch_data:
-        #         result.extend(struct.pack("l", value))
+            for value in ch_data:
+                result.extend(struct.pack("h", value))
 
         return bytes(result)
