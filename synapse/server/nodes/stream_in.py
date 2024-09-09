@@ -24,7 +24,7 @@ class StreamIn(BaseNode):
         c.stream_in.CopyFrom(i)
         return c
 
-    def configure(self, config: StreamInConfig = StreamInConfig()) -> Status:
+    def configure(self, config, iface_ip) -> Status:
         self.data_type = config.data_type
         self.shape = config.shape
 

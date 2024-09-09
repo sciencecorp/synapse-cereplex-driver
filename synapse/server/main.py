@@ -29,6 +29,11 @@ if __name__ == "__main__":
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
+        "--iface-ip",
+        help="IP of the network interface to use for multicast traffic",
+        required=True
+    )
+    parser.add_argument(
         "--hidden",
         help="Don't reply to discovery requests without a passphrase",
         action="store_true",
@@ -58,6 +63,19 @@ if __name__ == "__main__":
     if args.hidden and args.passphrase is None:
         parser.error("--hidden requires --passphrase")
 
+    if args.iface_ip is None:
+        parser.error("--iface-ip is required")
+
+    # verify that network interface is real
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        s.bind((args.iface_ip, 8000))
+        logging.info(f"Binding to {s.getsockname()[0]}...")
+    except Exception as e:
+        parser.error("Invalid --iface-ip given, could not bind to interface")
+    finally:
+        s.close()
+
     if args.hidden:
         SECURITY_MODE = True
 
@@ -83,7 +101,7 @@ if __name__ == "__main__":
     transport, protocol = loop.run_until_complete(listen)
 
     async def serve_factory():
-        return await serve(args.name, args.serial, args.rpc_port)
+        return await serve(args.name, args.serial, args.rpc_port, args.iface_ip)
 
     main_task = loop.create_task(serve_factory())
     loop.run_until_complete(main_task)

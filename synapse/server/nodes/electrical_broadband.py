@@ -1,5 +1,6 @@
 from enum import Enum
 import struct
+import sys
 import threading
 from typing import List, Tuple
 
@@ -68,9 +69,6 @@ class ElectricalBroadband(BaseNode):
         cbpy.close()
         self.logger.info("cerebus connection closed")
 
-    def configure(self, config=ElectricalBroadbandConfig()) -> Status:
-        return self._configure(config)
-
     def start(self) -> Status:
         self.thread = threading.Thread(target=self.run, args=())
         self.thread.start()
@@ -91,10 +89,10 @@ class ElectricalBroadband(BaseNode):
     def run(self):
         while not self.stop_event.is_set():
             try:
-                self.logger.info("Reading data")
                 try:
+                    # data is a list of [channel_id, np.array(samples, dtype=int16)] tuples
+                    # t0 is the timestamp at sample 0
                     res, data, t0 = cbpy.trial_continuous(reset=True)
-                    self.logger.info("data")
                 except Exception as e:
                     self.logger.error(f"Exception in cbpy.trial_continuous: {e}")
                     continue
@@ -103,16 +101,15 @@ class ElectricalBroadband(BaseNode):
                     self.logger.warn(f"failed to read data: code {res}")
                     continue
 
-                if self.emit_data:
-                    self.emit_data((DataType.kBroadband, data))
-                    self.logger.debug("Data emitted to next node")
-                else:
-                    self.logger.warn("emit_data is not set, data not sent")
+                if len(data) < 1:
+                    continue
 
+                if self.emit_data:
+                    self.emit_data((DataType.kBroadband, t0, data))
             except Exception as e:
                 self.logger.warn(f"failed to read data: {e}")
 
-    def _configure(self, config: ElectricalBroadbandConfig) -> Status:
+    def configure(self, config: ElectricalBroadbandConfig, iface_ip) -> Status:
         self.logger.info(
             f"Configuring ElectricalBroadband node with configuration {config}"
         )

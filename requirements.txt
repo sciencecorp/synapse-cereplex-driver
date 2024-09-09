@@ -11,3 +11,4 @@ protobuf==4.25.3
 protoletariat==3.2.19
 pycparser==2.22; implementation_name == "pypy"
 setuptools==70.1.0
+netifaces==0.11.0

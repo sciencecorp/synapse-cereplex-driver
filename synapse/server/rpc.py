@@ -23,10 +23,10 @@ from synapse.generated.api.synapse_pb2_grpc import (
 )
 
 
-async def serve(server_name, device_serial, rpc_port) -> None:
+async def serve(server_name, device_serial, rpc_port, iface_ip) -> None:
     server = grpc.aio.server()
     add_SynapseDeviceServicer_to_server(
-        SynapseServicer(server_name, device_serial), server
+        SynapseServicer(server_name, device_serial, iface_ip), server
     )
     server.add_insecure_port("[::]:%d" % rpc_port)
     await server.start()
@@ -49,9 +49,10 @@ class SynapseServicer(SynapseDeviceServicer):
     nodes = []
     peripherals = ElectricalBroadbandPeripherals
 
-    def __init__(self, name, serial):
+    def __init__(self, name, serial, iface_ip):
         self.name = name
         self.serial = serial
+        self.iface_ip = iface_ip
         self.logger = logging.getLogger("server")
 
     def Info(self, request, context):
@@ -180,7 +181,7 @@ class SynapseServicer(SynapseDeviceServicer):
                 "Creating %s node(%d)" % (NodeType.Name(node.type), node.id)
             )
             node = NODE_TYPE_OBJECT_MAP[node.type](node.id)
-            status = node.configure(config)
+            status = node.configure(config, self.iface_ip)
 
             if not status.ok():
                 self.logger.warning(

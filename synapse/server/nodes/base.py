@@ -11,7 +11,7 @@ class BaseNode(object):
         self.type: NodeType = type
         self.socket: Tuple[str, int] = None
 
-        self.logger = logging.getLogger(f"(type {type})")
+        self.logger = logging.getLogger(f"[{self.__class__.__name__} id: {self.id}]")
 
     def config(self) -> NodeConfig:
         return NodeConfig(
@@ -19,7 +19,7 @@ class BaseNode(object):
             type=self.type,
         )
 
-    def configure(self, config) -> Status:
+    def configure(self, config, iface_ip) -> Status:
         raise NotImplementedError
 
     def start(self):
