@@ -1,19 +1,16 @@
 from enum import Enum
-import struct
-import sys
 import threading
-from typing import List, Tuple
 
 from cerebus import cbpy
 
-from synapse.server.nodes import BaseNode
-from synapse.generated.api.node_pb2 import NodeOptions, NodeType
-from synapse.generated.api.nodes.electrical_broadband_pb2 import (
+from synapse.api.node_pb2 import NodeOptions, NodeType
+from synapse.api.nodes.electrical_broadband_pb2 import (
     ElectricalBroadbandConfig,
     ElectricalBroadbandOptions,
 )
-from synapse.generated.api.datatype_pb2 import DataType
-from synapse.generated.api.synapse_pb2 import Peripheral
+from synapse.api.datatype_pb2 import DataType
+from synapse.api.synapse_pb2 import Peripheral
+from synapse.server.nodes import BaseNode
 from synapse.server.status import Status, StatusCode
 
 

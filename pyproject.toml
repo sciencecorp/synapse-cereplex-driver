@@ -1,13 +1,11 @@
 [project]
-name = "synapse-device"
+name = "synapse-cereplex"
 version = "0.1.0"
-description = "Simple Synapse device implementation in Python."
+description = "Synapse driver for Blackrock CerePlex systems"
 authors = [
     {name = "Science Team", email = "team@science.xyz"},
 ]
 dependencies = [
-    "grpcio-tools",
-    "protoletariat"
 ]
 readme = "README.md"
 license = {text = "TBD"}
