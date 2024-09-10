@@ -1,5 +1,4 @@
 # Generated protobuf code
-synapse/generated/
 bin/
 proto/*
 *_pb2.py
