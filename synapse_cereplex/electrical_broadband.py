@@ -1,5 +1,6 @@
 from enum import Enum
 import threading
+import time
 
 from cerebus import cbpy
 
@@ -103,6 +104,9 @@ class ElectricalBroadband(BaseNode):
 
                 if self.emit_data:
                     self.emit_data((DataType.kBroadband, t0, data))
+
+                time.sleep(0.001)
+
             except Exception as e:
                 self.logger.warn(f"failed to read data: {e}")
 
