@@ -110,7 +110,10 @@ class ElectricalBroadband(BaseNode):
             except Exception as e:
                 self.logger.warn(f"failed to read data: {e}")
 
-    def configure(self, config: ElectricalBroadbandConfig, iface_ip) -> Status:
+    def configure_iface_ip(self, iface_ip):
+        self.__iface_ip = iface_ip
+
+    def configure(self, config: ElectricalBroadbandConfig) -> Status:
         self.logger.info(
             f"Configuring ElectricalBroadband node with configuration {config}"
         )
