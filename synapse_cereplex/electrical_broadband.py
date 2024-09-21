@@ -56,6 +56,7 @@ class ElectricalBroadband(BaseNode):
     def __init__(self, id):
         super().__init__(id, NodeType.kElectricalBroadband)
         self.stop_event = threading.Event()
+        self.sample_rate = 0
 
         res, con_info = cbpy.open(parameter=cbpy.defaultConParams())
 
@@ -89,8 +90,13 @@ class ElectricalBroadband(BaseNode):
             try:
                 try:
                     # data is a list of [channel_id, np.array(samples, dtype=int16)] tuples
-                    # t0 is the timestamp at sample 0
                     res, data, t0 = cbpy.trial_continuous(reset=True)
+
+                    # t0 is the nanosecond timestamp at sample 0, but it's represented in too
+                    # few bits and a pain to deal with, so we are overwriting it here with the
+                    # current time in microseconds
+                    t0 = int(time.time() * 1e6)
+
                 except Exception as e:
                     self.logger.error(f"Exception in cbpy.trial_continuous: {e}")
                     continue
@@ -103,7 +109,7 @@ class ElectricalBroadband(BaseNode):
                     continue
 
                 if self.emit_data:
-                    self.emit_data((DataType.kBroadband, t0, data))
+                    self.emit_data((DataType.kBroadband, t0, data, self.sample_rate))
 
                 time.sleep(0.001)
 
@@ -134,14 +140,14 @@ class ElectricalBroadband(BaseNode):
         peripheral_options = peripheral.options.electrical_broadband
 
         # Validate sample rate
-        sample_rate = config.sample_rate
-        if sample_rate not in peripheral_options.sample_rate:
+        self.sample_rate = config.sample_rate
+        if self.sample_rate not in peripheral_options.sample_rate:
             return Status(
                 code=StatusCode.kUndefinedError,
                 message=f"invalid sample rate: must be one of {peripheral_options.sample_rate}",
             )
 
-        sample_group = CONFIG_MAP_SAMPLE_RATE[sample_rate]
+        sample_group = CONFIG_MAP_SAMPLE_RATE[self.sample_rate]
 
         # Validate bit width
         bit_width = config.bit_width
