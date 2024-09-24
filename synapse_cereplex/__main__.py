@@ -6,16 +6,13 @@ from synapse_cereplex.electrical_broadband import (
 )
 from synapse.api.node_pb2 import NodeType
 
-
 def run():
     main(
-        SERVER_NODE_OBJECT_MAP
-        | {
+        SERVER_NODE_OBJECT_MAP | {
             NodeType.kElectricalBroadband: ElectricalBroadband,
         },
         ElectricalBroadbandPeripherals,
     )
-
 
 if __name__ == "__main__":
     run()
