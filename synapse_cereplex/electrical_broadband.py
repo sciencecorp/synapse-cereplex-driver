@@ -8,7 +8,6 @@ from synapse.api.nodes.electrical_broadband_pb2 import (
     ElectricalBroadbandConfig,
     ElectricalBroadbandOptions,
 )
-from synapse.api.datatype_pb2 import DataType
 from synapse.api.synapse_pb2 import Peripheral
 from synapse.server.nodes import BaseNode
 from synapse.server.status import Status, StatusCode
@@ -42,7 +41,7 @@ PERIPHERALS = [
             type=NodeType.kElectricalBroadband,
             id=1,
             electrical_broadband=ElectricalBroadbandOptions(
-                ch_count=192,
+                ch_count=96,
                 bit_width=[16, 64],  # Signed 16 bit  # Double
                 sample_rate=[500, 1000, 2000, 10000, 30000],
                 gain=[],
@@ -162,15 +161,21 @@ class ElectricalBroadband(BaseNode):
         ch_count = peripheral_options.ch_count
         for ch in config.channels:
             ch_id = ch.id
-            if ch_id >= ch_count:
+
+            if ch_id == 0:
                 return Status(
                     code=StatusCode.kUndefinedError,
-                    message=f"invalid channel id={ch_id}: must be less than {ch_count}",
+                    message=f"invalid channel id={ch_id}: cereplex does not support zero-indexing",
+                )
+            elif ch_id > ch_count:
+                return Status(
+                    code=StatusCode.kUndefinedError,
+                    message=f"invalid channel id={ch_id}: must be within [1, {ch_count}]",
                 )
             ch_map[ch_id] = ch
 
         # Configure channels (on / off, sample group / rate)
-        for c in range(ch_count):
+        for c in range(1, ch_count + 1):
             ch_sample_group = SampleGroup.NONE
 
             if c in ch_map:
@@ -205,17 +210,12 @@ class ElectricalBroadband(BaseNode):
     def _configure_channel(
         self, peripheral: Peripheral, ch: int, sample_group: SampleGroup
     ) -> Status:
-        # Synapse channels are 0 indexed
-        # Blackrock channels are 1 indexed
-        blackrock_ch_index = ch + 1
         res = None
         info = None
 
-        self.logger.debug(
-            f"configuring channel {ch} (blackrock i: {blackrock_ch_index}) with group {sample_group}"
-        )
+        self.logger.debug(f"configuring channel {ch} with group {sample_group}")
         try:
-            res, info = cbpy.get_channel_config(blackrock_ch_index)
+            res, info = cbpy.get_channel_config(ch)
 
             if res != 0:
                 return Status(
@@ -232,7 +232,7 @@ class ElectricalBroadband(BaseNode):
             )
 
         try:
-            res = cbpy.set_channel_config(blackrock_ch_index, info)
+            res = cbpy.set_channel_config(ch, info)
 
         except RuntimeError as e:
             return Status(
