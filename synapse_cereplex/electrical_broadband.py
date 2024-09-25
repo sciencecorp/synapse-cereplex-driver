@@ -1,5 +1,4 @@
 from enum import Enum
-import threading
 import time
 
 from cerebus import cbpy
@@ -13,6 +12,7 @@ from synapse.api.datatype_pb2 import DataType
 from synapse.api.synapse_pb2 import Peripheral
 from synapse.server.nodes import BaseNode
 from synapse.server.status import Status, StatusCode
+from synapse.utils.types import ElectricalBroadbandData
 
 
 class SampleGroup(Enum):
@@ -55,8 +55,8 @@ PERIPHERALS = [
 class ElectricalBroadband(BaseNode):
     def __init__(self, id):
         super().__init__(id, NodeType.kElectricalBroadband)
-        self.stop_event = threading.Event()
         self.sample_rate = 0
+        self.bit_width = 0
 
         res, con_info = cbpy.open(parameter=cbpy.defaultConParams())
 
@@ -67,23 +67,6 @@ class ElectricalBroadband(BaseNode):
         self.logger.info("closing cerebus connection...")
         cbpy.close()
         self.logger.info("cerebus connection closed")
-
-    def start(self) -> Status:
-        self.thread = threading.Thread(target=self.run, args=())
-        self.thread.start()
-        self.logger.info("started")
-
-        return Status()
-
-    def stop(self) -> Status:
-        if not hasattr(self, "thread") or not self.thread.is_alive():
-            return
-        self.logger.info("stopping...")
-        self.stop_event.set()
-        self.thread.join()
-        self.logger.info("stopped")
-
-        return Status()
 
     def run(self):
         while not self.stop_event.is_set():
@@ -109,15 +92,24 @@ class ElectricalBroadband(BaseNode):
                     continue
 
                 if self.emit_data:
-                    self.emit_data((DataType.kBroadband, t0, data, self.sample_rate))
+                    broadband_data = ElectricalBroadbandData(
+                        bit_width=self.bit_width,
+                        signed=True,
+                        sample_rate=self.sample_rate,
+                        t0=t0,
+                        channels=[
+                            ElectricalBroadbandData.ChannelData(
+                                channel_id=ch_id, channel_data=data
+                            )
+                            for ch_id, data in data
+                        ],
+                    )
+                    self.emit_data(broadband_data)
 
                 time.sleep(0.001)
 
             except Exception as e:
                 self.logger.warn(f"failed to read data: {e}")
-
-    def configure_iface_ip(self, iface_ip):
-        self.__iface_ip = iface_ip
 
     def configure(self, config: ElectricalBroadbandConfig) -> Status:
         self.logger.info(
@@ -150,8 +142,8 @@ class ElectricalBroadband(BaseNode):
         sample_group = CONFIG_MAP_SAMPLE_RATE[self.sample_rate]
 
         # Validate bit width
-        bit_width = config.bit_width
-        if bit_width not in peripheral_options.bit_width:
+        self.bit_width = config.bit_width
+        if self.bit_width not in peripheral_options.bit_width:
             return Status(
                 code=StatusCode.kUndefinedError,
                 message=f"invalid bit width: must be one of {peripheral_options.bit_width}",
@@ -195,7 +187,7 @@ class ElectricalBroadband(BaseNode):
                 "absolute_time": True,
                 "continuous_length": 30000,
                 "event_length": 0,
-                "double": bit_width == 64,
+                "double": self.bit_width == 64,
             },
             noevent=1,
             nocontinuous=0,
