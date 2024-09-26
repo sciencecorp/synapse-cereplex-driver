@@ -110,6 +110,12 @@ class ElectricalBroadband(BaseNode):
             except Exception as e:
                 self.logger.warn(f"failed to read data: {e}")
 
+    def config(self):
+        c = super().config()
+        if self.__config:
+            c.electrical_broadband.CopyFrom(self.__config)
+        return c
+
     def configure(self, config: ElectricalBroadbandConfig) -> Status:
         self.logger.info(
             f"Configuring ElectricalBroadband node with configuration {config}"
@@ -204,6 +210,8 @@ class ElectricalBroadband(BaseNode):
                 code=StatusCode.kUndefinedError,
                 message=f"failed to configure system: code {res}",
             )
+
+        self.__config = config
 
         return Status(code=StatusCode.kOk, message="Configuration successful")
 
