@@ -11,7 +11,7 @@ from synapse.api.nodes.electrical_broadband_pb2 import (
 from synapse.api.synapse_pb2 import Peripheral
 from synapse.server.nodes import BaseNode
 from synapse.server.status import Status, StatusCode
-from synapse.utils.types import ElectricalBroadbandData
+from synapse.utils.ndtp_types import ElectricalBroadbandData
 
 
 class SampleGroup(Enum):
@@ -91,19 +91,11 @@ class ElectricalBroadband(BaseNode):
                     continue
 
                 if self.emit_data:
-                    broadband_data = ElectricalBroadbandData(
-                        bit_width=self.bit_width,
-                        signed=True,
-                        sample_rate=self.sample_rate,
-                        t0=t0,
-                        channels=[
-                            ElectricalBroadbandData.ChannelData(
-                                channel_id=ch_id, channel_data=data
-                            )
-                            for ch_id, data in data
-                        ],
+                    self.emit_data(
+                        ElectricalBroadbandData(
+                            sample_rate=self.sample_rate, t0=t0, samples=data
+                        )
                     )
-                    self.emit_data(broadband_data)
 
                 time.sleep(0.001)
 
