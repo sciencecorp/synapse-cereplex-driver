@@ -1,3 +1,4 @@
+import asyncio
 from enum import Enum
 import time
 
@@ -67,37 +68,41 @@ class ElectricalBroadband(BaseNode):
         cbpy.close()
         self.logger.info("cerebus connection closed")
 
-    def run(self):
-        while not self.stop_event.is_set():
+    def get_data(self):
+        try:
+            # data is a list of [channel_id, np.array(samples, dtype=int16)] tuples
+            res, data, t0 = cbpy.trial_continuous(reset=True)
+
+            # t0 is the nanosecond timestamp at sample 0, but it's represented in too
+            # few bits and a pain to deal with, so we are overwriting it here with the
+            # current time in microseconds
+            t0 = int(time.time() * 1e6)
+
+            if res != 0:
+                self.logger.warn(f"failed to read data: code {res}")
+                return None, None
+
+            if len(data) < 1:
+                return None, None
+
+            return data, t0
+
+        except Exception as e:
+            self.logger.error(f"Exception in cbpy.trial_continuous: {e}")
+            return None, None
+
+    async def run(self):
+        while self.running:
             try:
-                try:
-                    # data is a list of [channel_id, np.array(samples, dtype=int16)] tuples
-                    res, data, t0 = cbpy.trial_continuous(reset=True)
+                data, t0 = await asyncio.to_thread(self.get_data)
 
-                    # t0 is the nanosecond timestamp at sample 0, but it's represented in too
-                    # few bits and a pain to deal with, so we are overwriting it here with the
-                    # current time in microseconds
-                    t0 = int(time.time() * 1e6)
-
-                except Exception as e:
-                    self.logger.error(f"Exception in cbpy.trial_continuous: {e}")
-                    continue
-
-                if res != 0:
-                    self.logger.warn(f"failed to read data: code {res}")
-                    continue
-
-                if len(data) < 1:
-                    continue
-
-                if self.emit_data:
-                    self.emit_data(
+                if data:
+                    await self.emit_data(
                         ElectricalBroadbandData(
                             sample_rate=self.sample_rate, t0=t0, samples=data
                         )
                     )
-
-                time.sleep(0.001)
+                await asyncio.sleep(0.001)
 
             except Exception as e:
                 self.logger.warn(f"failed to read data: {e}")
