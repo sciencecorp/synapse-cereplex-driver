@@ -1,12 +1,12 @@
+import asyncio
 from enum import Enum
 import time
 
 from cerebus import cbpy
 
-from synapse.api.node_pb2 import NodeOptions, NodeType
+from synapse.api.node_pb2 import NodeType
 from synapse.api.nodes.electrical_broadband_pb2 import (
     ElectricalBroadbandConfig,
-    ElectricalBroadbandOptions,
 )
 from synapse.api.synapse_pb2 import Peripheral
 from synapse.server.nodes import BaseNode
@@ -37,18 +37,12 @@ PERIPHERALS = [
         vendor="Blackrock Neurotech",
         peripheral_id=1,
         type=Peripheral.Type.kElectricalRecord,
-        options=NodeOptions(
-            type=NodeType.kElectricalBroadband,
-            id=1,
-            electrical_broadband=ElectricalBroadbandOptions(
-                ch_count=96,
-                bit_width=[16, 64],  # Signed 16 bit  # Double
-                sample_rate=[500, 1000, 2000, 10000, 30000],
-                gain=[],
-            ),
-        ),
     )
 ]
+
+CHANNEL_COUNT = 96
+BIT_WIDTHS = [16, 64]
+SAMPLE_RATES = [500, 1000, 2000, 10000, 30000]
 
 
 class ElectricalBroadband(BaseNode):
@@ -67,37 +61,44 @@ class ElectricalBroadband(BaseNode):
         cbpy.close()
         self.logger.info("cerebus connection closed")
 
-    def run(self):
-        while not self.stop_event.is_set():
+    def get_data(self):
+        try:
+            # data is a list of [channel_id, np.array(samples, dtype=int16)] tuples
+            res, data, t0 = cbpy.trial_continuous(reset=True)
+
+            # t0 is the nanosecond timestamp at sample 0, but it's represented in too
+            # few bits and a pain to deal with, so we are overwriting it here with the
+            # current time in microseconds
+            t0 = int(time.time() * 1e6)
+
+            if res != 0:
+                self.logger.warn(f"failed to read data: code {res}")
+                return None, None
+
+            if len(data) < 1:
+                return None, None
+
+            return data, t0
+
+        except Exception as e:
+            self.logger.error(f"Exception in cbpy.trial_continuous: {e}")
+            return None, None
+
+    async def run(self):
+        while self.running:
             try:
-                try:
-                    # data is a list of [channel_id, np.array(samples, dtype=int16)] tuples
-                    res, data, t0 = cbpy.trial_continuous(reset=True)
+                data, t0 = await asyncio.to_thread(self.get_data)
 
-                    # t0 is the nanosecond timestamp at sample 0, but it's represented in too
-                    # few bits and a pain to deal with, so we are overwriting it here with the
-                    # current time in microseconds
-                    t0 = int(time.time() * 1e6)
-
-                except Exception as e:
-                    self.logger.error(f"Exception in cbpy.trial_continuous: {e}")
-                    continue
-
-                if res != 0:
-                    self.logger.warn(f"failed to read data: code {res}")
-                    continue
-
-                if len(data) < 1:
-                    continue
-
-                if self.emit_data:
-                    self.emit_data(
+                if data:
+                    await self.emit_data(
                         ElectricalBroadbandData(
-                            sample_rate=self.sample_rate, t0=t0, samples=data
+                            sample_rate=self.sample_rate,
+                            t0=t0,
+                            samples=data,
+                            bit_width=self.bit_width,
                         )
                     )
-
-                time.sleep(0.001)
+                await asyncio.sleep(0.001)
 
             except Exception as e:
                 self.logger.warn(f"failed to read data: {e}")
@@ -126,37 +127,27 @@ class ElectricalBroadband(BaseNode):
             )
 
         peripheral = ps[0]
-        peripheral_options = peripheral.options.electrical_broadband
 
         # Validate sample rate
         self.sample_rate = config.sample_rate
-        if self.sample_rate not in peripheral_options.sample_rate:
+        if self.sample_rate not in SAMPLE_RATES:
             return Status(
                 code=StatusCode.kUndefinedError,
-                message=f"invalid sample rate: must be one of {peripheral_options.sample_rate}",
+                message=f"invalid sample rate: must be one of {SAMPLE_RATES}",
             )
 
         sample_group = CONFIG_MAP_SAMPLE_RATE[self.sample_rate]
 
         # Validate bit width
         self.bit_width = config.bit_width
-        if self.bit_width not in peripheral_options.bit_width:
+        if self.bit_width not in BIT_WIDTHS:
             return Status(
                 code=StatusCode.kUndefinedError,
-                message=f"invalid bit width: must be one of {peripheral_options.bit_width}",
-            )
-
-        # Validate gain
-        gain = config.gain
-        if gain and gain not in peripheral_options.gain:
-            return Status(
-                code=StatusCode.kUndefinedError,
-                message=f"invalid gain: must be one of {peripheral_options.gain}",
+                message=f"invalid bit width: must be one of {BIT_WIDTHS}",
             )
 
         # Validate Channels
         ch_map = {}
-        ch_count = peripheral_options.ch_count
         for ch in config.channels:
             ch_id = ch.id
 
@@ -165,15 +156,15 @@ class ElectricalBroadband(BaseNode):
                     code=StatusCode.kUndefinedError,
                     message=f"invalid channel id={ch_id}: cereplex does not support zero-indexing",
                 )
-            elif ch_id > ch_count:
+            elif ch_id > CHANNEL_COUNT:
                 return Status(
                     code=StatusCode.kUndefinedError,
-                    message=f"invalid channel id={ch_id}: must be within [1, {ch_count}]",
+                    message=f"invalid channel id={ch_id}: must be within [1, {CHANNEL_COUNT}]",
                 )
             ch_map[ch_id] = ch
 
         # Configure channels (on / off, sample group / rate)
-        for c in range(1, ch_count + 1):
+        for c in range(1, CHANNEL_COUNT + 1):
             ch_sample_group = SampleGroup.NONE
 
             if c in ch_map:
