@@ -5,10 +5,6 @@ from synapse_cereplex.electrical_broadband import (
     ElectricalBroadband,
     PERIPHERALS as ElectricalBroadbandPeripherals,
 )
-from synapse_cereplex.fakebrain_broadband import (
-    FakeBrainBroadband,
-    PERIPHERALS as FakeBrainBroadbandPeripherals,
-)
 from synapse.api.node_pb2 import NodeType
 
 defaults = ENTRY_DEFAULTS.copy()
