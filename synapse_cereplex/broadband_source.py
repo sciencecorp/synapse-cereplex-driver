@@ -153,12 +153,25 @@ class BroadbandSource(BaseNode):
 
         # Configure channels (on / off, sample group / rate)
         for c in range(1, CHANNEL_COUNT + 1):
+            max_attempts = 5
+            n_attempts = 0
+            status = None
+
             ch_sample_group = SampleGroup.NONE
 
             if c in ch_map:
                 ch_sample_group = sample_group
 
-            status = self._configure_channel(peripheral, c, ch_sample_group)
+            while n_attempts < max_attempts:
+                status = self._configure_channel(peripheral, c, ch_sample_group)
+                if status.ok():
+                    break
+                self.logger.warn(
+                    f"failed to configure channel {c}: {status.message()}, retrying {n_attempts + 1}/{max_attempts}"
+                )
+                time.sleep(0.01)
+                n_attempts += 1
+
             if not status.ok():
                 return status
 
@@ -219,7 +232,25 @@ class BroadbandSource(BaseNode):
                 message=f"failed to set config for channel {ch}: {e}",
             )
 
-        self.logger.debug(f" - configured channel {ch}")
+        try:
+            res, info = cbpy.get_channel_config(ch)
+            if res != 0:
+                return Status(
+                    code=StatusCode.kInternalError,
+                    message=f"failed to read config for channel {ch}: code {res}",
+                )
+            if info["smpgroup"] != sample_group.value:
+                return Status(
+                    code=StatusCode.kInternalError,
+                    message=f"failed to set group {sample_group.value} for channel {ch}",
+                )
+        except RuntimeError as e:
+            return Status(
+                code=StatusCode.kInternalError,
+                message=f"failed to read config for channel {ch}: {e}",
+            )
+
+        self.logger.info(f" - configured channel {ch} with group {info['smpgroup']}")
 
         return Status()
 
